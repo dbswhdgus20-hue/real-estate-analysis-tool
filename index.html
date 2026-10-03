@@ -66,7 +66,7 @@
   --font-sans:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo","맑은 고딕",sans-serif;
   --ease:cubic-bezier(.4,0,.2,1);--dur:200ms;
 
-  --detail-w:278px;--bottom-h:242px;
+  --detail-w:278px;--bottom-h:224px;
 }
 
 body{
@@ -78,28 +78,43 @@ body{
 button{font-family:inherit}
 .num{font-variant-numeric:tabular-nums}
 
-/* ══════════ 헤더 — 슬라이드 페이지 머리 재현 ══════════
-   파란 짧은 스텁 + 브라운 긴 룰, 제목은 브라운               */
+/* ══════════ 헤더 — 한 줄 조작바 ══════════
+   조작 요소를 한 줄에 모으고 자주 안 쓰는 조건은 접어 둔다.
+   예전 3단 밴드는 1600×900에서 276px을 먹어 지도를 그만큼 깎아먹었다.
+   지금은 접힌 상태에서 60px대다. 브랜드 룰(파랑 스텁 + 브라운 긴 줄)은 남긴다. */
 .header{background:#fff;flex-shrink:0;z-index:200;border-bottom:1px solid var(--ui-line)}
-.h-top{display:flex;align-items:flex-end;gap:14px;padding:12px 20px 0}
-.h-mark{display:flex;align-items:baseline;gap:9px}
-.h-num{font-size:26px;font-weight:700;line-height:1;color:var(--kirt-blue-light)}
-.h-num em{font-style:normal;color:var(--kirt-blue)}
-.h-title{font-size:19px;font-weight:700;color:var(--ui-title);letter-spacing:-.01em;line-height:1.2}
-.h-owner{margin-left:auto;font-size:11px;color:var(--ui-ink-2);text-align:right;line-height:1.5}
-.h-rules{display:flex;align-items:center;gap:8px;padding:7px 20px 0}
-.h-rule-stub{width:50px;height:2.67px;background:var(--kirt-blue);flex-shrink:0}
+.h-line{display:flex;align-items:center;gap:8px;padding:6px 14px;flex-wrap:wrap}
+.h-title{font-size:15px;font-weight:700;color:var(--ui-title);letter-spacing:-.01em;
+  white-space:nowrap;flex-shrink:0}
+.h-lbl{font-size:10.5px;color:var(--ui-ink-2);white-space:nowrap;flex-shrink:0}
+.h-sep{width:1px;height:18px;background:#CBD8EA;flex-shrink:0}
+.h-line-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.h-logo{height:19px;width:auto;display:block}
+.hrow{display:flex;align-items:center;gap:4px}
+
+.h-rules{display:flex;align-items:center;gap:8px;padding:0 14px 5px}
+.h-rule-stub{width:44px;height:2.67px;background:var(--kirt-blue);flex-shrink:0}
 .h-rule-long{flex:1;height:2.67px;background:var(--kirt-brown)}
 
-/* 조작 밴드 */
-.h-bands{background:var(--ui-chrome);border-top:1px solid var(--ui-line);margin-top:9px}
-.h-band{display:flex;align-items:flex-end;gap:16px;padding:9px 20px;flex-wrap:wrap}
-.h-band + .h-band{border-top:1px solid #D8E3F1}
-.h-divider{width:1px;align-self:stretch;background:#CBD8EA;flex-shrink:0}
-.hgroup{display:flex;flex-direction:column;gap:4px}
-.hgroup-label{font-size:10px;color:var(--ui-accent);font-weight:700;letter-spacing:.02em}
-.hrow{display:flex;align-items:center;gap:5px}
-.h-band-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+/* 접히는 조건 줄 */
+.h-more{
+  display:none;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:6px 14px;background:var(--ui-chrome);border-top:1px solid var(--ui-line);
+}
+.h-more.open{display:flex}
+.hbtn-more{padding:0 9px}
+.hbtn-more.on{background:var(--ui-accent);color:#fff}
+.more-caret{font-size:9px;display:inline-block}
+.hbtn-more.on .more-caret{transform:rotate(180deg)}
+.hbtn-more .dot{display:inline-block;width:5px;height:5px;background:var(--kirt-brown);margin-left:3px;vertical-align:1px}
+.h-chk{font-size:11px;color:var(--ui-ink-2);display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+.h-chk input{accent-color:var(--ui-accent)}
+
+/* 상태 한 줄 */
+.h-statusline{
+  display:flex;align-items:center;gap:10px;padding:3px 14px 4px;
+  background:var(--ui-chrome);border-top:1px solid var(--ui-line);min-height:21px;
+}
 
 /* 입력 */
 .hi{
@@ -120,11 +135,13 @@ button{font-family:inherit}
 .hbtn-run{background:var(--ui-accent);color:#fff;font-weight:700;padding:0 20px;height:30px}
 .hbtn-run:disabled{background:var(--ui-ink-3);border-color:var(--ui-ink-3);color:#fff;cursor:not-allowed;opacity:1}
 
-.hstatus{font-size:11px;color:var(--ui-ink-2);max-width:270px;line-height:1.35}
+.hstatus{font-size:11px;color:var(--ui-ink-2);line-height:1.3;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .hstatus.ok{color:var(--ui-accent);font-weight:500}
 .hstatus.err{color:var(--kirt-brown);font-weight:700}
 .hstatus.loading{color:var(--kirt-tan);font-weight:500}
-.hprog{display:none;flex-direction:column;gap:3px;min-width:150px}
+.hprog{display:none;align-items:center;gap:6px;flex-shrink:0;min-width:200px}
+.hprog-bar{flex:1}
 .hprog-bar{height:3px;background:#fff;border:1px solid var(--kirt-blue-light);overflow:hidden}
 .hprog-fill{height:100%;background:var(--ui-accent);width:0%;transition:width var(--dur) var(--ease)}
 .hprog-txt{font-size:9.5px;color:var(--ui-ink-2)}
@@ -144,6 +161,7 @@ button{font-family:inherit}
 .addr-ok{font-size:10px;color:var(--ui-accent);margin-top:3px;height:12px;font-weight:500}
 
 /* 토글형 버튼 (반경 · 금액대) */
+.filter-bar span,.filter-bar button{white-space:nowrap}
 .rbtn,.ppbtn,.fbtn{
   padding:0 10px;height:26px;border:1px solid var(--ui-line-strong);border-radius:0;
   background:#fff;color:var(--ui-ink-2);font-size:11px;cursor:pointer;font-family:inherit;
@@ -214,17 +232,44 @@ button{font-family:inherit}
 
 /* 지도 라벨 — 선택 체크와 상세보기 분리 */
 .complex-label{cursor:pointer;user-select:none}
-.complex-label .cl-box{display:flex;align-items:stretch;border:1.5px solid #fff}
+.complex-label .cl-box{display:flex;align-items:center;gap:4px;border:1.5px solid #fff;padding:3px 7px 3px 4px}
+/* 선택 네모 — 예전엔 라벨 왼쪽을 세로로 꽉 채운 15px 띠라 라벨의 1/4을 먹었다.
+   밝은 칸과 어두운 칸 어디에 얹혀도 보이도록 흰 바탕 + 진한 테두리로 둔다. */
 .complex-label .cl-check{
-  width:15px;display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.92);color:var(--ui-ink-2);font-size:9px;font-weight:700;
-  border-right:1px solid rgba(255,255,255,.55);
+  width:10px;height:10px;flex-shrink:0;background:#fff;border:1px solid rgba(0,0,0,.34);
+  font-size:8px;line-height:9px;text-align:center;font-weight:700;color:var(--ui-accent);
 }
-.complex-label.on .cl-check{background:var(--ui-select);color:#fff}
+.complex-label.on .cl-check{background:var(--ui-select);border-color:var(--ui-select);color:#fff}
 .complex-label.on .cl-box{border-color:var(--ui-select)}
-.complex-label .cl-body{padding:4px 8px;display:flex;flex-direction:column;align-items:center;gap:1px;color:#fff}
+.complex-label .cl-body{display:flex;flex-direction:column;align-items:center;gap:1px;color:#fff}
+
+/* 겹칠 때 줄어드는 점 — 이름·가격은 감추고 색 사각형만 남긴다.
+   호버하면 카드가 뜨고 누르면 상세가 열려, 정보가 사라지지는 않는다. */
+.complex-label.mini .cl-body,
+.complex-label.mini .cl-tail,
+.complex-label.mini .cl-check{display:none}
+.complex-label.mini .cl-box{width:12px;height:12px;padding:0;gap:0}
+.complex-label.mini:hover{z-index:9}
 .complex-label .cl-name{font-size:11px;font-weight:600;white-space:nowrap}
 .complex-label .cl-avg{font-size:10px;font-weight:700;opacity:.92}
+/* 실거래가 있는 단지가 분양 중이기도 하면, 마커를 따로 세우지 않고
+   같은 라벨 안에 한 줄로 붙인다 (예전에는 두 라벨이 겹쳐 글자가 엉켰다) */
+.complex-label .cl-bun{margin-top:2px;background:var(--kirt-brown);color:#fff;
+  font-size:9px;font-weight:700;line-height:1.5;padding:0 5px;white-space:nowrap}
+/* 실거래가 없는 신규 분양 — 한 줄짜리 작은 표식.
+   선택 네모가 없고(Excel 대상이 아니다) 단지 라벨보다 한 단계 작게 둔다. */
+.bunyang-label{cursor:pointer;user-select:none}
+.bunyang-label .bl-box{
+  display:flex;align-items:center;gap:4px;background:#fff;
+  border:1px solid var(--kirt-brown);border-left:3px solid var(--kirt-brown);
+  padding:2px 6px;white-space:nowrap;
+}
+.bunyang-label .bl-tag{font-size:9px;font-weight:700;color:var(--kirt-brown)}
+.bunyang-label .bl-name{font-size:10.5px;font-weight:600;color:var(--ui-title)}
+.bunyang-label .bl-cnt{font-size:9.5px;color:var(--ui-ink-2)}
+.bunyang-label .bl-tail{width:0;height:0;margin:-1px auto 0;
+  border-left:4px solid transparent;border-right:4px solid transparent;
+  border-top:6px solid var(--kirt-brown)}
 .complex-label .cl-tail{width:0;height:0;margin:-1px auto 0;border-left:5px solid transparent;border-right:5px solid transparent}
 
 /* ══════════ 우측 상세 패널 ══════════ */
@@ -304,8 +349,22 @@ button{font-family:inherit}
 .sc-val{font-size:13px;font-weight:700;color:var(--ui-title);font-variant-numeric:tabular-nums;line-height:1.2}
 .sc-lbl{font-size:9px;color:var(--ui-ink-2);margin-top:1px}
 
-/* 탭 */
-.tab-bar{display:flex;border-bottom:1px solid var(--ui-line-strong);padding:0 12px;flex-shrink:0;gap:2px}
+/* 탭 + 필터를 한 줄로 — 예전엔 탭줄·필터줄·주석줄로 3단이라
+   208px 패널에서 표가 3행밖에 안 보였다. 한 줄로 합쳐 3행 → 6행. */
+.bp-tools{
+  display:flex;align-items:center;gap:8px;padding:0 12px;flex-wrap:wrap;
+  border-bottom:1px solid var(--ui-line-strong);background:var(--ui-chrome);flex-shrink:0;
+}
+.bp-grip{
+  height:6px;flex-shrink:0;cursor:ns-resize;background:var(--ui-chrome);
+  border-bottom:1px solid var(--ui-line);position:relative;
+}
+.bp-grip::after{
+  content:'';position:absolute;left:50%;top:2px;width:38px;height:2px;margin-left:-19px;
+  background:var(--ui-line-strong);
+}
+.bp-grip:hover::after{background:var(--ui-accent)}
+.tab-bar{display:flex;flex-shrink:0;gap:2px}
 .tab{
   padding:4px 12px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid transparent;
   border-bottom:none;background:transparent;color:var(--ui-ink-2);margin-bottom:-1px;font-family:inherit;
@@ -314,7 +373,7 @@ button{font-family:inherit}
 .tab.active{color:#fff;background:var(--ui-accent);border-color:var(--ui-accent);font-weight:700}
 
 /* 필터 바 */
-.filter-bar{display:flex;gap:5px;padding:4px 12px;border-bottom:1px solid var(--ui-line);flex-shrink:0;flex-wrap:wrap;align-items:center;background:var(--ui-chrome)}
+.filter-bar{display:flex;gap:5px;padding:4px 0;flex:1;min-width:0;flex-wrap:wrap;align-items:center}
 .fsep{width:1px;height:16px;background:#CBD8EA;margin:0 2px}
 .pinput{width:74px;padding:3px 7px;border:1px solid var(--ui-line-strong);border-radius:0;font-size:11px;text-align:right;outline:none;font-family:inherit;font-variant-numeric:tabular-nums}
 .pinput:focus{border-color:var(--ui-accent)}
@@ -324,17 +383,18 @@ button{font-family:inherit}
 
 /* 테이블 — 네이비 헤더 + 페일블루 지브라 */
 .tbl-area{flex:1;overflow-y:auto}
-table{width:100%;font-size:11px;border-collapse:collapse}
+table{width:100%;font-size:11.5px;border-collapse:collapse}
 th{
   text-align:left;padding:3px 8px;font-size:10px;font-weight:700;color:#fff;
   border-right:1px solid #fff;position:sticky;top:0;background:var(--ui-accent);white-space:nowrap;
 }
 th:last-child{border-right:none}
 th.r{text-align:right}
-td{padding:3px 8px;border-bottom:1px solid var(--ui-line);color:var(--ui-ink);white-space:nowrap}
+td{padding:3.5px 8px;border-bottom:1px solid var(--ui-line);color:var(--ui-ink);white-space:nowrap;line-height:1.35}
 td.r{text-align:right;font-variant-numeric:tabular-nums}
 tbody tr:nth-child(even) td{background:var(--kirt-blue-pale)}
 tbody tr:hover td{background:var(--kirt-blue-light)}
+tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--ui-accent)}
 tr:last-child td{border-bottom:none}
 .empty{text-align:center;padding:18px 16px;color:var(--ui-ink-2);font-size:12.5px;line-height:1.7}
 .empty b{display:block;color:var(--ui-title);font-size:13.5px;margin-bottom:6px;font-weight:700}
@@ -381,9 +441,66 @@ tr:last-child td{border-bottom:none}
   display:inline-block;border:1px solid var(--ui-line-strong);padding:0 4px;
   font-size:10px;font-family:inherit;color:var(--ui-ink-2);line-height:15px;background:#fff;
 }
+/* ══════════ 반응형 ══════════
+   데스크톱(1400+) → 작은 노트북(1180) → 소형 노트북(1024) → 태블릿(900/780)
+   화면이 좁아질수록 ① 우측 패널 폭 ② 여백 ③ 부가 정보 순서로 덜어낸다.
+   지도와 표는 마지막까지 지킨다. 780px 아래에서는 상세 패널이 지도를
+   밀지 않고 위에 겹쳐 떠서, 좁은 화면에서도 지도가 납작해지지 않는다. */
+@media (max-width:1400px){
+  :root{--detail-w:254px}
+}
+/* 한 줄이 좁아지면 제목부터 줄이고, 그다음 여백·높이를 줄인다.
+   그래도 안 들어가면 줄바꿈되지만 접힌 상태라 두 줄을 넘지 않는다. */
+@media (max-width:1400px), (max-height:880px){
+  .h-line{gap:6px;padding:5px 12px}
+  .h-title{font-size:14px}
+  .hi,.hbtn{height:26px}
+  .hbtn-run{height:28px;padding:0 14px}
+  .h-logo{height:18px}
+}
 @media (max-width:1180px){
-  .h-band{gap:10px}
-  .h-owner{display:none}
+  :root{--detail-w:236px;--bottom-h:220px}
+  .h-title{display:none}
+  .h-rules{padding:0 12px 4px}
+  /* 도구줄이 두 줄로 접히면 거래 표가 그만큼 줄어든다. 한 줄로 두고 가로로 민다. */
+  .bp-tools{flex-wrap:nowrap}
+  .filter-bar{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+  /* 눌려서 글자가 두 줄이 되면 도구줄이 두 배로 두꺼워진다 — 줄이지 말고 가로로 민다 */
+  .filter-bar > *{flex-shrink:0}
+}
+@media (max-width:1024px){
+  :root{--detail-w:220px;--bottom-h:220px}
+  .h-line,.h-more,.h-statusline{padding-left:10px;padding-right:10px}
+  .kbd-hint{display:none}
+  .map-legend{gap:9px;padding:6px 9px;font-size:10px}
+  .select-bar{min-width:0;max-width:224px}
+  .bp-header{padding:4px 10px}
+  .tab-bar,.filter-bar{padding-left:10px;padding-right:10px}
+}
+@media (max-width:900px){
+  :root{--detail-w:200px;--bottom-h:216px}
+  .map-legend{display:none}
+  .select-bar{max-width:196px;top:8px;right:8px}
+  .h-sep{display:none}
+}
+/* 화면이 낮으면(구형 노트북 768~800) 헤더와 하단 패널을 함께 줄여 지도를 지킨다 */
+@media (max-height:820px){
+  :root{--bottom-h:220px}
+}
+/* 태블릿 세로 — 상세 패널을 지도 위에 띄운다 (지도 폭을 뺏기지 않도록) */
+@media (max-width:780px){
+  :root{--bottom-h:208px}
+  .main{position:relative}
+  .detail-panel{transition:opacity var(--dur) var(--ease)}
+  .detail-panel.open{
+    position:absolute;top:0;right:0;bottom:0;width:272px;max-width:82vw;z-index:60;
+    border-left:1px solid var(--ui-line-strong);
+  }
+  /* 하단 패널이 열려 있으면 그 위까지만 덮는다 (거래 표를 가리지 않도록) */
+  .main:has(.bottom-panel.open) .detail-panel.open{bottom:var(--bottom-h)}
+  .map-row{border-right:none}
+  .select-bar{display:none}
+  .h-line{gap:5px}
 }
 
 </style>
@@ -393,136 +510,119 @@ tr:last-child td{border-bottom:none}
 <!-- ══════════════ 헤더 ══════════════ -->
 <div class="header">
 
-  <div class="h-top">
-    <div class="h-mark">
-      <span class="h-num">0<em>1</em></span>
-      <span class="h-title">인근 실거래 분석</span>
+  <!-- 한 줄 조작바 — 지도를 최대한 넓게 쓰려고 제목·검색·반경·기간·유형·실행을 한 줄에 둔다 -->
+  <div class="h-line">
+    <span class="h-title">인근 실거래 분석</span>
+
+    <div class="search-wrap">
+      <div class="hrow">
+        <input class="hi" type="text" id="addrInput" style="width:178px" placeholder="사업지 주소" autocomplete="off"/>
+        <button class="hbtn" onclick="searchAddr()">검색</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+      <div class="addr-ok" id="addrOk"></div>
     </div>
-    <div class="h-owner">한국투자부동산신탁<br>사업지 인근 아파트·오피스텔 실거래 조회</div>
+
+    <span class="h-sep"></span>
+
+    <div class="hrow" title="반경 (단축키 1~5)">
+      <span class="h-lbl">반경</span>
+      <button class="rbtn" data-r="1000" onclick="setR(1000)">1</button>
+      <button class="rbtn active" data-r="2000" onclick="setR(2000)">2</button>
+      <button class="rbtn" data-r="3000" onclick="setR(3000)">3</button>
+      <button class="rbtn" data-r="4000" onclick="setR(4000)">4</button>
+      <button class="rbtn" data-r="5000" onclick="setR(5000)">5</button>
+      <input class="hi" type="number" id="customR" placeholder="직접" style="width:54px;text-align:right" min="1"
+             onkeydown="if(event.key==='Enter')applyCustomR()" onchange="applyCustomR()"/>
+      <span class="h-lbl">km</span>
+    </div>
+
+    <span class="h-sep"></span>
+
+    <div class="hrow" title="조회 기간">
+      <select class="hi" id="startYear" style="width:66px"></select>
+      <select class="hi" id="startMonth" style="width:50px"></select>
+      <span class="h-lbl">~</span>
+      <select class="hi" id="endYear" style="width:66px"></select>
+      <select class="hi" id="endMonth" style="width:50px"></select>
+    </div>
+
+    <span class="h-sep"></span>
+
+    <select class="hi" id="selType" style="width:140px" title="분석 유형">
+      <option value="both">아파트 + 오피스텔</option>
+      <option value="apt">아파트만</option>
+      <option value="oft">오피스텔만</option>
+    </select>
+
+    <button class="hbtn hbtn-run" id="runBtn" onclick="runAnalysis()" title="단축키: Ctrl + Enter">분석 시작</button>
+    <button class="hbtn hbtn-more" id="moreBtn" onclick="toggleFilters()"
+            title="전용면적 · 거래금액 · 수집 옵션">필터 <span class="more-caret">▾</span></button>
+
+    <div class="h-line-right">
+      <span class="badge b-warn" id="areaTag" style="display:none"></span>
+      <span class="badge b-warn" id="apiMode" title="확인 중">확인 중</span>
+      <img class="h-logo" alt="한국투자부동산신탁" src="data:image/png;base64,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"/>
+    </div>
   </div>
+
   <div class="h-rules"><div class="h-rule-stub"></div><div class="h-rule-long"></div></div>
 
-  <div class="h-bands">
-
-    <!-- 1행: 사업지 · 반경 · 실행 -->
-    <div class="h-band">
-      <div class="hgroup">
-        <div class="hgroup-label">사업지 주소</div>
-        <div class="search-wrap">
-          <div class="hrow">
-            <input class="hi" type="text" id="addrInput" style="width:236px" placeholder="예) 서울 강서구 화곡로 308" autocomplete="off"/>
-            <button class="hbtn" onclick="searchAddr()">검색</button>
-          </div>
-          <div class="search-results" id="searchResults"></div>
-          <div class="addr-ok" id="addrOk"></div>
-        </div>
-      </div>
-
-      <div class="h-divider"></div>
-
-      <div class="hgroup">
-        <div class="hgroup-label">반경</div>
-        <div class="hrow">
-          <button class="rbtn" data-r="1000" onclick="setR(1000)">1km</button>
-          <button class="rbtn active" data-r="2000" onclick="setR(2000)">2km</button>
-          <button class="rbtn" data-r="3000" onclick="setR(3000)">3km</button>
-          <button class="rbtn" data-r="4000" onclick="setR(4000)">4km</button>
-          <button class="rbtn" data-r="5000" onclick="setR(5000)">5km</button>
-          <input class="hi" type="number" id="customR" placeholder="직접" style="width:52px;text-align:right" min="1"/>
-          <span style="font-size:10.5px;color:var(--ui-ink-2)">km</span>
-          <button class="hbtn" onclick="applyCustomR()">적용</button>
-        </div>
-      </div>
-
-      <div class="h-band-right">
-        <div class="hprog" id="progWrap">
-          <div class="hprog-bar"><div class="hprog-fill" id="pFill"></div></div>
-          <div class="hprog-txt" id="pTxt"></div>
-        </div>
-        <span class="badge b-warn" id="areaTag" style="display:none"></span>
-        <div class="hstatus" id="status">사업지 주소를 먼저 검색</div>
-        <button class="hbtn hbtn-run" id="runBtn" onclick="runAnalysis()" title="단축키: Ctrl + Enter">분석 시작</button>
-      </div>
+  <!-- 접히는 줄 — 자주 안 쓰는 조건은 여기로 내렸다 (기본 접힘) -->
+  <div class="h-more" id="hMore">
+    <div class="hrow">
+      <span class="h-lbl">전용면적</span>
+      <input class="hi num" type="number" id="areaMin" placeholder="최소" style="width:58px;text-align:right" min="0" step="1"/>
+      <span class="h-lbl">~</span>
+      <input class="hi num" type="number" id="areaMax" placeholder="최대" style="width:58px;text-align:right" min="0" step="1"/>
+      <button class="ppbtn" onclick="setArea(0,60)" title="소형">~60</button>
+      <button class="ppbtn" onclick="setArea(60,85)" title="59·84 타입">60~85</button>
+      <button class="ppbtn" onclick="setArea(85,135)" title="114 타입">85~135</button>
+      <button class="ppbtn" onclick="setArea(135,0)" title="대형">135~</button>
+      <button class="ppbtn" onclick="setArea(0,0)">해제</button>
     </div>
 
-    <!-- 2행: 기간 · 유형 · 금액 -->
-    <div class="h-band">
-      <div class="hgroup">
-        <div class="hgroup-label">조회 기간</div>
-        <div class="hrow">
-          <select class="hi" id="startYear" style="width:76px"></select>
-          <select class="hi" id="startMonth" style="width:58px"></select>
-          <span style="color:var(--ui-ink-2);font-size:11px">~</span>
-          <select class="hi" id="endYear" style="width:76px"></select>
-          <select class="hi" id="endMonth" style="width:58px"></select>
-        </div>
-      </div>
+    <span class="h-sep"></span>
 
-      <div class="h-divider"></div>
-
-      <div class="hgroup">
-        <div class="hgroup-label">분석 유형</div>
-        <select class="hi" id="selType" style="width:150px">
-          <option value="both">아파트 + 오피스텔</option>
-          <option value="apt">아파트만</option>
-          <option value="oft">오피스텔만</option>
-        </select>
-      </div>
-
-      <div class="h-divider"></div>
-
-      <div class="hgroup">
-        <div class="hgroup-label">전용면적 (㎡)</div>
-        <div class="hrow">
-          <input class="hi num" type="number" id="areaMin" placeholder="최소" style="width:62px;text-align:right" min="0" step="1"/>
-          <span style="color:var(--ui-ink-2);font-size:11px">~</span>
-          <input class="hi num" type="number" id="areaMax" placeholder="최대" style="width:62px;text-align:right" min="0" step="1"/>
-          <button class="ppbtn" onclick="setArea(0,60)" title="소형">~60</button>
-          <button class="ppbtn" onclick="setArea(60,85)" title="59·84 타입">60~85</button>
-          <button class="ppbtn" onclick="setArea(85,135)" title="114 타입">85~135</button>
-          <button class="ppbtn" onclick="setArea(135,0)" title="대형">135~</button>
-          <button class="ppbtn" onclick="setArea(0,0)">해제</button>
-        </div>
-      </div>
-
-      <div class="h-divider"></div>
-
-      <div class="hgroup">
-        <div class="hgroup-label">거래금액 범위 (만원)</div>
-        <div class="hrow">
-          <input class="hi" type="number" id="priceMin" placeholder="최소" style="width:76px;text-align:right"/>
-          <span style="color:var(--ui-ink-2);font-size:11px">~</span>
-          <input class="hi" type="number" id="priceMax" placeholder="최대" style="width:76px;text-align:right"/>
-          <button class="ppbtn" onclick="setPrice(0,30000)">~3억</button>
-          <button class="ppbtn" onclick="setPrice(30000,50000)">3~5억</button>
-          <button class="ppbtn" onclick="setPrice(50000,80000)">5~8억</button>
-          <button class="ppbtn" onclick="setPrice(80000,100000)">8~10억</button>
-          <button class="ppbtn" onclick="setPrice(100000,0)">10억~</button>
-          <button class="ppbtn" onclick="setPrice(0,0)">해제</button>
-        </div>
-      </div>
-
-      <div class="h-band-right">
-        <label style="font-size:11px;color:var(--ui-ink-2);display:flex;align-items:center;gap:5px;cursor:pointer"
-               title="신고 후 취소된 계약을 평균가·최고가 집계에서 제외합니다. 끄면 취소 건까지 포함됩니다.">
-          <input type="checkbox" id="exCanceled" checked onchange="toggleCanceled(this.checked)" style="accent-color:var(--ui-accent)"/>
-          해제거래 제외
-        </label>
-        <label style="font-size:11px;color:var(--ui-ink-2);display:flex;align-items:center;gap:5px;cursor:pointer"
-               title="상세 패널을 연 단지의 건축물대장을 조회해 공급면적을 실측합니다. 결과는 브라우저에 캐시됩니다.">
-          <input type="checkbox" id="ledgerOn" checked onchange="toggleLedger(this.checked)" style="accent-color:var(--ui-accent)"/>
-          건축물대장 공급면적
-        </label>
-        <span class="badge b-warn" id="apiMode" title="확인 중">확인 중</span>
-        <span style="font-size:10px;color:var(--ui-ink-2);line-height:1.6">
-          <span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> 분석 ·
-          <span class="kbd">Esc</span> 패널 닫기 ·
-          <span class="kbd">Ctrl</span>+<span class="kbd">E</span> Excel
-        </span>
-      </div>
+    <div class="hrow">
+      <span class="h-lbl">거래금액</span>
+      <input class="hi" type="number" id="priceMin" placeholder="최소" style="width:72px;text-align:right"/>
+      <span class="h-lbl">~</span>
+      <input class="hi" type="number" id="priceMax" placeholder="최대" style="width:72px;text-align:right"/>
+      <span class="h-lbl">만원</span>
+      <button class="ppbtn" onclick="setPrice(0,30000)">~3억</button>
+      <button class="ppbtn" onclick="setPrice(30000,50000)">3~5억</button>
+      <button class="ppbtn" onclick="setPrice(50000,80000)">5~8억</button>
+      <button class="ppbtn" onclick="setPrice(80000,100000)">8~10억</button>
+      <button class="ppbtn" onclick="setPrice(100000,0)">10억~</button>
+      <button class="ppbtn" onclick="setPrice(0,0)">해제</button>
     </div>
 
+    <span class="h-sep"></span>
+
+    <label class="h-chk" title="신고 후 취소된 계약을 평균가·최고가 집계에서 제외합니다.">
+      <input type="checkbox" id="exCanceled" checked onchange="toggleCanceled(this.checked)"/>해제거래 제외
+    </label>
+    <label class="h-chk" title="상세 패널을 연 단지의 건축물대장을 조회해 공급면적을 실측합니다.">
+      <input type="checkbox" id="ledgerOn" checked onchange="toggleLedger(this.checked)"/>건축물대장 공급면적
+    </label>
+
+    <span class="kbd-hint">
+      <span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> 분석 ·
+      <span class="kbd">Esc</span> 패널 닫기 ·
+      <span class="kbd">Ctrl</span>+<span class="kbd">E</span> Excel
+    </span>
   </div>
+
+  <!-- 상태 한 줄 — 진행률과 결과 요약 -->
+  <div class="h-statusline">
+    <div class="hprog" id="progWrap">
+      <div class="hprog-bar"><div class="hprog-fill" id="pFill"></div></div>
+      <div class="hprog-txt" id="pTxt"></div>
+    </div>
+    <div class="hstatus" id="status">사업지 주소를 먼저 검색</div>
+  </div>
+
 </div>
 
 <!-- ══════════════ 메인 ══════════════ -->
@@ -580,6 +680,7 @@ tr:last-child td{border-bottom:none}
 
     <!-- 하단 패널 -->
     <div class="bottom-panel" id="bottomPanel">
+      <div class="bp-grip" id="bpGrip" title="위아래로 끌어 높이 조절"></div>
       <div class="bp-header">
         <div>
           <div class="bp-title" id="bpTitle">거래 내역</div>
@@ -588,13 +689,14 @@ tr:last-child td{border-bottom:none}
         <button class="bp-close" onclick="closePanel()">닫기</button>
       </div>
       <div class="summary-strip" id="summaryStrip"></div>
-      <div class="tab-bar">
-        <button class="tab active" id="tab-trade" onclick="showTab('trade')">매매 내역</button>
-        <button class="tab" id="tab-rent" onclick="showTab('rent')">전월세 내역</button>
-        <button class="tab" id="tab-chart" onclick="showTab('chart')">월별 추이</button>
+      <div class="bp-tools">
+        <div class="tab-bar">
+          <button class="tab active" id="tab-trade" onclick="showTab('trade')">매매 내역</button>
+          <button class="tab" id="tab-rent" onclick="showTab('rent')">전월세 내역</button>
+          <button class="tab" id="tab-chart" onclick="showTab('chart')">월별 추이</button>
+        </div>
+        <div class="filter-bar" id="filterBar"></div>
       </div>
-      <div class="filter-bar" id="filterBar"></div>
-      <div class="area-note" id="areaNoteBar"></div>
       <div class="tbl-area" id="tblArea"><div class="empty"><b>선택된 단지 없음</b>지도의 단지 라벨을 누르면 거래 내역이 표시됨</div></div>
       <div class="chart-area" id="chartArea" style="display:none;"></div>
     </div>
@@ -687,6 +789,8 @@ var aptMks=[],oftMks=[],overlays=[],clusterer=null;
 var selR=2000,curLat=null,curLng=null,curLawd=null,curSido=null,curGu=null;
 var lawdNameMap={};         // 5자리 시군구코드 → {sido, gu}
 var allComplexes={},curComplex=null,curTab='trade',curAreaF='all';
+// 좌표가 잡힌 **모든** 단지 (반경 밖 포함). 분양 공고 위치를 실거래 단지로 맞출 때 쓴다.
+var complexIndex=[];
 var curLawds=[]; // 반경 내 모든 구 코드 목록
 var allBunyang=[]; // 분양 단지 목록
 var bunyangMarkers=[],bunyangOverlays=[]; // 분양 마커
@@ -755,8 +859,23 @@ async function bootstrap(){
   }
   loadKakaoSdk();
 }
+/* 패널이 열리고 닫히거나 창 크기가 바뀌면 지도 컨테이너 크기가 달라진다.
+   카카오 지도는 스스로 다시 계산하지 않아 회색 띠가 남으므로 relayout을 부른다.
+   전환 애니메이션(200ms)이 끝난 뒤 한 번만 돌도록 묶어 둔다. */
+var _relayoutTimer=null;
+function relayoutMap(){
+  if(typeof map==='undefined'||!map)return;
+  if(_relayoutTimer)clearTimeout(_relayoutTimer);
+  _relayoutTimer=setTimeout(function(){
+    _relayoutTimer=null;
+    try{ var c=map.getCenter(); map.relayout(); map.setCenter(c); }catch(e){}
+  },230);
+}
+window.addEventListener('resize',relayoutMap);
+
 function mapFail(msg){
-  setStatus('err',msg);
+  // 상태바는 textContent라 태그가 그대로 보인다. 한 줄로 눌러서 넣는다.
+  setStatus('err', String(msg).replace(/<br\s*\/?>/gi,' ').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim());
   document.getElementById('runBtn').disabled=true;
   document.getElementById('map').innerHTML=
     '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#666;font-size:13px;text-align:center;line-height:1.8;padding:24px">'+msg+'</div>';
@@ -792,10 +911,68 @@ function loadKakaoSdk(){
     });
   };
   sc.onerror=function(){
+    if(settled)return;
     settled=true;clearTimeout(watchdog);
     mapFail(IS_FILE?FILE_HINT:'지도를 불러오지 못했습니다.<br>Kakao 개발자콘솔에 해당 도메인이 등록됐는지 확인하세요.');
   };
   document.head.appendChild(sc);
+}
+
+/* 조건 줄 접기/펼치기 — 기본은 접힘.
+   조건이 걸려 있으면 버튼에 점을 찍어 접힌 상태에서도 알 수 있게 한다. */
+function toggleFilters(){
+  var box=document.getElementById('hMore'), btn=document.getElementById('moreBtn');
+  var open=box.classList.toggle('open');
+  btn.classList.toggle('on',open);
+  relayoutMap();
+}
+function markFilterDot(){
+  var btn=document.getElementById('moreBtn'); if(!btn)return;
+  var on=afActive()
+    ||!!document.getElementById('priceMin').value||!!document.getElementById('priceMax').value
+    ||!document.getElementById('exCanceled').checked||!document.getElementById('ledgerOn').checked;
+  var dot=btn.querySelector('.dot');
+  if(on&&!dot){var d=document.createElement('span');d.className='dot';btn.appendChild(d);}
+  if(!on&&dot)dot.remove();
+}
+
+/* 하단 패널 높이 조절 — 위 가장자리를 끌면 바뀐다.
+   사람마다 보고 싶은 거래 행 수가 달라 기본값 하나로는 부족하다. */
+var BOTTOM_KEY='kirt.bottomH';
+function setBottomH(px){
+  var min=140, max=Math.round(window.innerHeight*0.62);
+  px=Math.max(min,Math.min(max,Math.round(px)));
+  document.documentElement.style.setProperty('--bottom-h',px+'px');
+  try{localStorage.setItem(BOTTOM_KEY,String(px));}catch(e){}
+  relayoutMap();
+  return px;
+}
+function initBottomResize(){
+  var grip=document.getElementById('bpGrip'), panel=document.getElementById('bottomPanel');
+  if(!grip||!panel)return;
+  try{
+    var saved=parseInt(localStorage.getItem(BOTTOM_KEY)||'0');
+    if(saved>=140)document.documentElement.style.setProperty('--bottom-h',saved+'px');
+  }catch(e){}
+  var dragging=false;
+  grip.addEventListener('mousedown',function(e){
+    dragging=true; e.preventDefault();
+    document.body.style.cursor='ns-resize'; document.body.style.userSelect='none';
+  });
+  window.addEventListener('mousemove',function(e){
+    if(!dragging)return;
+    setBottomH(window.innerHeight-e.clientY);
+  });
+  window.addEventListener('mouseup',function(){
+    if(!dragging)return;
+    dragging=false; document.body.style.cursor=''; document.body.style.userSelect='';
+  });
+  // 더블클릭하면 기본값으로
+  grip.addEventListener('dblclick',function(){
+    document.documentElement.style.removeProperty('--bottom-h');
+    try{localStorage.removeItem(BOTTOM_KEY);}catch(e){}
+    relayoutMap();
+  });
 }
 
 // ── 키보드 조작 ──
@@ -867,7 +1044,7 @@ function applyCustomR(){var v=parseFloat(document.getElementById('customR').valu
 function drawCirc(){if(radCirc)radCirc.setMap(null);if(selR<=0)return;radCirc=new kakao.maps.Circle({map:map,center:new kakao.maps.LatLng(curLat,curLng),radius:selR,strokeWeight:2,strokeColor:'#41548B',strokeOpacity:.8,strokeStyle:'dashed',fillColor:'#41548B',fillOpacity:.06});}
 
 // ── 가격 필터 ──
-function setPrice(min,max){document.getElementById('priceMin').value=min||'';document.getElementById('priceMax').value=max||'';}
+function setPrice(min,max){document.getElementById('priceMin').value=min||'';document.getElementById('priceMax').value=max||'';markFilterDot();}
 function getPF(){return{min:parseInt(document.getElementById('priceMin').value)||0,max:parseInt(document.getElementById('priceMax').value)||0};}
 function applyPF(data){var pf=getPF();if(!pf.min&&!pf.max)return data;return data.filter(function(d){var a=parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;if(pf.min&&a<pf.min)return false;if(pf.max&&a>pf.max)return false;return true;});}
 
@@ -876,7 +1053,80 @@ function updateOverlay(){
   if(!map)return;
   var lv=map.getLevel();
   overlays.forEach(function(ol){ol.setMap((lv<=5&&!ol.__hidden)?map:null);});
-  bunyangOverlays.forEach(function(ol){ol.setMap(lv<=6?map:null);});
+  bunyangOverlays.forEach(function(ol){ol.setMap(lv<=5?map:null);});
+  scheduleDeclutter();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   라벨 겹침 정리
+   같은 자리에 단지가 몰리면 이름과 가격이 서로를 덮어 둘 다 못 읽는다.
+   지도 좌표가 아니라 **화면에 그려진 실제 사각형**을 재서, 겹치는 라벨만
+   작은 점으로 줄인다. 점도 호버하면 카드가 뜨고 누르면 상세가 열린다.
+   남길 순서 — 선택한 단지 > 거래가 많은 단지 > 사업지에 가까운 단지.
+   ══════════════════════════════════════════════════════════════ */
+var DECLUTTER_PAD=3, declutterTimer=null;
+// 점을 밀어 놓을 후보 자리 (가까운 곳부터)
+var OFFSETS=(function(){
+  var out=[];
+  [0,16,32,48,64].forEach(function(r){
+    if(r===0){out.push([0,0]);return;}
+    [[r,0],[-r,0],[0,r],[r,r],[-r,r],[0,-r],[r,-r],[-r,-r]].forEach(function(o){out.push(o);});
+  });
+  return out;
+})();
+function scheduleDeclutter(){
+  if(declutterTimer)cancelAnimationFrame(declutterTimer);
+  declutterTimer=requestAnimationFrame(function(){declutterTimer=null;declutterLabels();});
+}
+function declutterLabels(){
+  if(!map||!overlays.length)return;
+  var live=overlays.filter(function(ol){
+    return ol.__el&&!ol.__hidden&&ol.__el.isConnected&&ol.__el.offsetWidth>0;
+  });
+  if(!live.length)return;
+  live.forEach(function(ol){ol.__el.classList.remove('mini');ol.__el.style.transform='';});   // 먼저 전부 펼쳐 재측정
+  var order=live.slice().sort(function(a,b){
+    var sa=selectedKeys.has(a.__key)?1:0, sb=selectedKeys.has(b.__key)?1:0;
+    if(sa!==sb)return sb-sa;
+    var na=a.__n||0, nb=b.__n||0;
+    if(na!==nb)return nb-na;
+    var ca=allComplexes[a.__key], cb=allComplexes[b.__key];
+    return ((ca&&ca.dist)||0)-((cb&&cb.dist)||0);
+  });
+  var kept=[],mini=0;
+  order.forEach(function(ol){
+    var r=ol.__el.getBoundingClientRect();
+    if(!r.width)return;
+    var box={left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+    if(selectedKeys.has(ol.__key)){kept.push(box);return;}   // 선택한 단지는 줄이지 않는다
+    var hit=kept.some(function(k){
+      return !(box.right+DECLUTTER_PAD<k.left||box.left>k.right+DECLUTTER_PAD||
+               box.bottom+DECLUTTER_PAD<k.top||box.top>k.bottom+DECLUTTER_PAD);
+    });
+    if(hit){
+      ol.__el.classList.add('mini');mini++;
+      // 점을 원래 자리에 그냥 두면 남긴 라벨 글자 위에 얹힌다.
+      // 빈자리를 찾아 조금 밀어 놓는다 (14px 격자로 바깥쪽부터)
+      var d=ol.__el.getBoundingClientRect();
+      var dot={left:d.left,right:d.right,top:d.top,bottom:d.bottom};
+      var w=dot.right-dot.left||12, h=dot.bottom-dot.top||12;
+      var best=null;
+      for(var i=0;i<OFFSETS.length;i++){
+        var o=OFFSETS[i];
+        var c={left:dot.left+o[0],right:dot.left+o[0]+w,top:dot.top+o[1],bottom:dot.top+o[1]+h};
+        var bad=kept.some(function(k){
+          return !(c.right+2<k.left||c.left>k.right+2||c.bottom+2<k.top||c.top>k.bottom+2);
+        });
+        if(!bad){best={o:o,c:c};break;}
+      }
+      if(!best){var o2=OFFSETS[OFFSETS.length-1];
+        best={o:o2,c:{left:dot.left+o2[0],right:dot.left+o2[0]+w,top:dot.top+o2[1],bottom:dot.top+o2[1]+h}};}
+      if(best.o[0]||best.o[1])ol.__el.style.transform='translate('+best.o[0]+'px,'+best.o[1]+'px)';
+      kept.push(best.c);
+    }else kept.push(box);
+  });
+  if(mini)console.log('[라벨 정리] '+live.length+'개 중 '+mini+'개를 점으로 줄임 (겹침)');
+  return mini;
 }
 
 // 면적 범위를 지도에 반영 — 해당 면적 거래가 없는 단지는 숨기고,
@@ -965,6 +1215,7 @@ function setArea(min,max){
 }
 // 면적 범위가 바뀌면 지도와 열려 있는 패널을 함께 갱신한다
 function onAreaChange(){
+  markFilterDot();
   applyAreaToMap();
   if(curComplex&&document.getElementById('bottomPanel').classList.contains('open')){
     renderSummary();renderFilter();
@@ -1050,18 +1301,48 @@ async function getLawdsInRadius(lat, lng, radius) {
 function getDist(a,b,c,d){var R=6371000,dLat=(c-a)*Math.PI/180,dLng=(d-b)*Math.PI/180,x=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
 function getMonths(s,e){var m=[],c=parseInt(s);while(c<=parseInt(e)){m.push(String(c));var mo=c%100;c=mo===12?c+89:c+1;}return m;}
 function parseItems(xml,fields){return Array.from(xml.querySelectorAll('item')).map(function(item){var o={};fields.forEach(function(f){var el=item.querySelector(f);o[f]=el?el.textContent.trim():'';});return o;});}
-async function fetchXml(url){
-  var r=await fetch(url,{cache:API_MODE==='proxy'?'default':'no-store'});
-  var text=await r.text();
-  if(!r.ok){
-    var message='HTTP '+r.status;
-    try{var j=JSON.parse(text);message=j.error||j.message||message;}catch(e){}
-    throw new Error(message);
-  }
-  var xml=new DOMParser().parseFromString(text,'text/xml');
-  if(xml.querySelector('parsererror'))throw new Error('API 응답을 XML로 읽지 못했습니다.');
-  return xml;
+async function fetchXml(url){var r=await fetch(url);return new DOMParser().parseFromString(await r.text(),'text/xml');}
+
+/* 상류가 간헐적으로 뱉는 일시 오류.
+   실측 확인 (2026-09-26): 건축물대장 총괄표제부가 같은 파라미터로
+   한 번은 SERVICETIMEOUT_ERROR("서비스 연결실패 에러", resultCode 05)를 주고
+   바로 다시 부르면 정상(00)으로 왔다. 키·권한 문제가 아니라 잠깐 끊긴 것이라
+   한 번 실패했다고 단지 하나의 건축개요를 통째로 버리면 손해다.
+   쿼터 초과(22)나 키 오류(30·31)는 다시 불러도 같으므로 재시도하지 않는다. */
+/* 공공데이터포털 표준 오류코드를 사람 말로 옮긴다.
+   예전에는 20~32번대를 전부 "활용신청 필요"로 뭉뚱그려 안내했다.
+   그런데 22(일일 트래픽 초과)와 21(키 일시중지)은 신청 문제가 아니라
+   이미 쓰고 있는 키의 사용량·상태 문제여서, 신청이 끝난 사용자에게
+   "활용신청 필요"라고 잘못 알려 주고 있었다. 코드별로 갈라 안내한다. */
+var API_ERR={
+  '03':{short:'조회 결과 없음',       how:'해당 지번에 등재된 자료가 없습니다'},
+  '04':{short:'일시 통신 오류',       how:'잠시 후 다시 시도하세요 (3회 재시도 후에도 실패)'},
+  '05':{short:'상류 응답 지연',       how:'잠시 후 다시 시도하세요 (3회 재시도 후에도 실패)'},
+  '10':{short:'요청 파라미터 오류',   how:'지번·법정동코드를 다시 확인하세요'},
+  '12':{short:'활용신청 안 된 서비스',how:'공공데이터포털에서 "건축HUB_건축물대장정보 서비스" 활용신청이 필요합니다'},
+  '20':{short:'접근 거부',            how:'해당 키로 이 서비스를 쓸 수 없습니다 — 포털에서 승인 상태를 확인하세요'},
+  '21':{short:'키 일시 중지',         how:'포털 마이페이지에서 키 상태를 확인하세요 (신청 문제가 아닙니다)'},
+  '22':{short:'일일 호출 한도 초과',  how:'개발계정 한도를 다 썼습니다. 자정에 초기화되며, 계속 쓰려면 운영계정 전환을 신청하세요'},
+  '30':{short:'등록되지 않은 서비스키',how:'.env의 DATA_GO_KR_KEY가 맞는지 확인하세요 (Decoding 키)'},
+  '31':{short:'키 사용기간 만료',     how:'포털에서 활용기간을 연장하세요'},
+  '32':{short:'등록되지 않은 IP',     how:'포털의 허용 IP 설정을 확인하세요'},
+  '33':{short:'서명되지 않은 호출',   how:'포털의 호출 설정을 확인하세요'}
+};
+function explainApiError(msg){
+  var m=String(msg||'').match(/(^|\s)(\d{2})(\s|$)/);
+  var code=m?m[2]:'';
+  var e=API_ERR[code];
+  if(e)return {code:code,short:e.short,how:e.how};
+  if(/LIMITED_NUMBER_OF_SERVICE_REQUESTS/i.test(msg))return {code:'22',short:API_ERR['22'].short,how:API_ERR['22'].how};
+  if(/SERVICE_KEY_IS_NOT_REGISTERED/i.test(msg))      return {code:'30',short:API_ERR['30'].short,how:API_ERR['30'].how};
+  if(/NO_OPENAPI_SERVICE/i.test(msg))                 return {code:'12',short:API_ERR['12'].short,how:API_ERR['12'].how};
+  if(/ACCESS_DENIED/i.test(msg))                      return {code:'20',short:API_ERR['20'].short,how:API_ERR['20'].how};
+  return null;                 // 알 수 없는 오류는 화면을 막지 않고 콘솔에만 남긴다
 }
+function isTransientApiError(msg){
+  return /SERVICETIMEOUT|SERVICE_TIMEOUT|HTTP_ERROR|SERVER_ERROR|연결실패|일시적|네트워크/i.test(String(msg||''));
+}
+function sleepMs(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function fmt(n){return n?Number(n).toLocaleString('ko-KR'):'-';}
 
 /* ══════════════════════════════════════════════════════════════
@@ -1089,7 +1370,7 @@ function qs(o){return Object.keys(o).filter(function(k){return o[k]!==undefined&
   .map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(o[k]);}).join('&');}
 function apiUrl(spec,params){
   return API_MODE==='proxy'
-    ? PROXY_BASE+'/public-data?dataset='+encodeURIComponent(spec.route)+(qs(params)?'&'+qs(params):'')
+    ? PROXY_BASE+'/'+spec.route+'?'+qs(params)
     : DATA_BASE+spec.path+'?serviceKey='+PK+(qs(params)?'&'+qs(params):'');
 }
 // 로컬 파일(file://)로 열었는지. 이 경우 같은 출처 fetch가 전부 막힌다.
@@ -1146,14 +1427,14 @@ async function runPool(items, worker, limit, onEach){
 }
 
 // ── 3단계: totalCount 기반 전체 페이지 수집 ──
-// 배포 환경에서는 페이지별 요청을 같은 출처 프록시로 보내 키를 숨긴다.
-// 브라우저가 필요한 페이지만 병렬로 받아 서버리스 응답 용량 제한도 피한다.
+// 프록시 모드에서는 서버가 페이징·캐싱을 끝내고 JSON으로 내려준다.
 //
 // ※ 실측 확인: 건축물대장 서비스는 numOfRows를 요청값과 무관하게 100으로 깎는다
 //   (1,000을 보내도 응답 numOfRows=100). 그래서 요청값을 믿지 않고
 //   1페이지 응답이 알려주는 numOfRows를 실제 페이지 크기로 삼는다.
 //   압구정 현대아파트 한 단지가 4,307행 = 44페이지다.
 async function fetchAllItems(spec, params, fields, label){
+  if(API_MODE==='proxy')return fetchViaProxy(spec, params, fields, label);
   var baseUrl=apiUrl(spec, params);
   var want=spec.pageSize||PAGE_SIZE;
   var apiError=null;
@@ -1169,10 +1450,26 @@ async function fetchAllItems(spec, params, fields, label){
     return m;
   }
 
+  // 일시 오류면 짧게 쉬었다 다시 부른다 (최대 3회)
+  async function getXml(url,page){
+    if(/^ledger/.test(spec.route||''))ledgerCalls++;
+    var last=null;
+    for(var i=1;i<=3;i++){
+      var xml=null,msg=null;
+      try{ xml=await fetchXml(url); }catch(e){ msg='네트워크 오류 '+(e&&e.message||e); }
+      if(xml){ msg=checkErr(xml,page); if(!msg)return {xml:xml}; }
+      last=msg;
+      if(i===3||!isTransientApiError(msg))break;
+      console.warn('[재시도 '+i+'/2] '+label+' p'+page+' → '+msg);
+      await sleepMs(350*i);
+    }
+    return {err:last};
+  }
+
   // 1페이지로 실제 페이지 크기와 총건수를 확인한다
-  var first=await fetchXml(baseUrl+'&pageNo=1&numOfRows='+want);
-  apiError=checkErr(first,1);
-  if(apiError){lastFetchError=apiError;var e0=[];e0.__apiError=apiError;return e0;}
+  var r1=await getXml(baseUrl+'&pageNo=1&numOfRows='+want,1);
+  if(r1.err){apiError=r1.err;lastFetchError=apiError;var e0=[];e0.__apiError=apiError;return e0;}
+  var first=r1.xml;
 
   var rows=parseItems(first, fields);
   var tcEl=first.querySelector('totalCount');
@@ -1189,10 +1486,9 @@ async function fetchAllItems(spec, params, fields, label){
     var pages=[];for(var pnum=2;pnum<=last;pnum++)pages.push(pnum);
     // 남은 페이지는 동시에 받는다 (44페이지를 순차로 도는 건 감당이 안 된다)
     var got=await runPool(pages, async function(pnum){
-      var xml=await fetchXml(baseUrl+'&pageNo='+pnum+'&numOfRows='+size);
-      var err=checkErr(xml,pnum);
-      if(err)throw new Error(err);
-      return parseItems(xml, fields);
+      var rp=await getXml(baseUrl+'&pageNo='+pnum+'&numOfRows='+size,pnum);
+      if(rp.err)throw new Error(rp.err);
+      return parseItems(rp.xml, fields);
     }, PAGE_CONCURRENCY);
     got.forEach(function(g){
       if(!g||g.__error){if(!apiError)apiError=g&&g.__error||'페이지 수집 실패';return;}
@@ -1208,6 +1504,36 @@ async function fetchAllItems(spec, params, fields, label){
   statFetched+=rows.length;
   if(apiError)rows.__apiError=apiError;   // 전역 대신 결과에 실어 보낸다 (병렬 레이스 방지)
   return rows;
+}
+
+// 프록시 모드 — 서버가 페이징·필드축소까지 끝낸 결과를 한 번에 받는다
+async function fetchViaProxy(spec, params, fields, label){
+  // 필요한 필드를 서버에 알려 응답을 줄인다.
+  // 실거래 한 건에 35개 필드가 달려 있어 그대로 받으면 수천 건에서 수 MB가 되고,
+  // 서버리스 응답 한도(4.5MB)에 걸린다.
+  var p2={};Object.keys(params).forEach(function(k){p2[k]=params[k];});
+  p2.fields=fields.join(',');
+  // cache:'default' — 엣지 CDN 캐시를 쓰기 위함. no-store면 매번 상류까지 간다.
+  if(/^ledger/.test(spec.route||''))ledgerCalls++;
+  var r=await fetch(apiUrl(spec, p2),{cache:'default'});
+  var j=null;
+  try{ j=await r.json(); }catch(e){ j=null; }
+  if(!r.ok||!j||j.ok!==true){
+    var msg=(j&&(j.error||j.message))||('HTTP '+r.status);
+    lastFetchError=msg;
+    console.warn('[프록시 오류] '+label+' → '+msg);
+    var empty=[];empty.__apiError=msg;return empty;
+  }
+  if(j.truncated){
+    statTruncated.push(label+' '+j.items.length+'/'+j.total+'건');
+    console.warn('[수집 누락 가능] '+label+': '+j.items.length+'/'+j.total+'건 (서버 페이지 상한)');
+  }
+  statFetched+=j.items.length;
+  if(j.pages>1)console.log('[페이징] '+label+': '+j.total+'건 · 페이지크기 '+j.pageSize+' · '+j.pages+'페이지 (서버 처리)');
+  // direct 모드와 동일한 형태로 맞춘다 (서버가 이미 골라 주지만 방어적으로)
+  return j.items.map(function(it){
+    var o={};fields.forEach(function(f){o[f]=it[f]!=null?String(it[f]).trim():'';});return o;
+  });
 }
 
 // ── 2단계: 해제(취소)된 계약 제외 ──
@@ -1496,21 +1822,127 @@ function jibunAddr(c){
   if(!lot||!c.dong)return '';
   return (sggName(c)+' '+c.dong+' '+lot).trim();
 }
+/* ── 지역 검증 ──────────────────────────────────────────────
+   카카오는 찾는 주소가 없으면 **비슷한 다른 지역 주소를 대신 돌려준다.**
+   실제 사례: 분양 공고의 "서울특별시 강서구 등촌동 633-10"은 사업 전 지번이라
+   지금은 없는 번지다(현재는 727). 그대로 검색하면 엉뚱한 시·군의 633-10이
+   잡혀 발산역 반경 안에 경상북도 영주시 주소가 섞여 들어왔다.
+   장소(키워드) 검색도 이름만 같으면 다른 지역 상호를 돌려준다.
+   → 결과의 주소에 기대한 시군구(또는 법정동)가 들어 있는지 항상 확인한다. */
+function resultAddrText(r){
+  if(!r)return '';
+  return [r.address_name, r.road_address_name,
+          r.address&&r.address.address_name,
+          r.road_address&&r.road_address.address_name].filter(Boolean).join(' ');
+}
+// 결과가 말하는 법정동. 카카오는 구조화된 필드로도 준다(region_3depth_name).
+function resultDong(r){
+  var s=(r.address&&r.address.region_3depth_name)
+      ||(r.road_address&&r.road_address.region_3depth_name)||'';
+  if(s)return String(s).trim();
+  var m=String(resultAddrText(r)).match(/([가-힣]+[0-9]*(?:동|읍|면|리|가))(?=\s|\)|$)/);
+  return m?m[1]:'';
+}
+/* 지역 검증 — 시군구가 아니라 **법정동**이 기준이다.
+   시군구만 보면 같은 구 안의 엉뚱한 지점을 그대로 통과시킨다.
+   실제 사례: 발산역 반경 1km 검색에서 '등촌 지와인'(실제 등촌동 727, 2.6km)이
+   같은 강서구 안 656m 지점에 찍혔다. 구는 맞으니 걸러지지 않았던 것.
+   법정동 정보가 아예 없는 결과만 시군구까지로 봐준다. */
+function regionOk(r, gu, dong){
+  var a=resultAddrText(r);
+  if(!a)return false;
+  if(gu&&a.indexOf(gu)===-1)return false;
+  if(!dong)return true;
+  var rd=resultDong(r);
+  if(!rd)return true;                       // 법정동을 알 수 없는 결과는 시군구까지만
+  return rd===dong || a.indexOf(dong)!==-1;
+}
+// 주소 문자열에서 시군구 이름만 뽑는다 ("경기도 화성시 …" → "화성시")
+function guOfAddr(a){
+  var m=String(a||'').match(/([가-힣]+(?:시|군|구))(?=\s)/g);
+  if(!m)return '';
+  // "서울특별시 강서구 …"처럼 시·구가 함께 오면 뒤엣것(더 좁은 단위)을 쓴다
+  var last=m[m.length-1];
+  return (m.length>1&&/시$/.test(last)&&/구$/.test(m[m.length-2]))?m[m.length-2]:last;
+}
+// 주소 문자열에서 법정동 ("서울특별시 강서구 등촌동 633-10번지 일원" → "등촌동")
+function dongOfAddr(a){
+  var m=String(a||'').match(/([가-힣]+[0-9]*(?:동|읍|면|가))(?=\s|,|$)/);
+  return m?m[1]:'';
+}
+// 주소 문자열에서 지번 ("… 등촌동 633-10번지 일원" → "633-10")
+function lotOfAddr(a){
+  var m=String(a||'').match(/(?:동|읍|면|리|가)\s+(?:산\s*)?(\d+)(?:\s*-\s*(\d+))?/);
+  if(!m)return '';
+  return m[1]+(m[2]&&parseInt(m[2],10)?'-'+parseInt(m[2],10):'');
+}
+// 검색 결과가 실제로 돌려준 지번
+function lotOfResult(r){
+  var a=r&&r.address;
+  if(!a)return '';
+  var b=parseInt(a.main_address_no,10)||0, s=parseInt(a.sub_address_no,10)||0;
+  return b?(b+(s?'-'+s:'')):'';
+}
+/* 필지까지 맞는 결과인지.
+   카카오는 없는 지번을 물으면 address_type을 'REGION'(법정동 단위)으로 바꿔
+   **동 중심 좌표**를 대신 돌려준다. 법정동은 맞으니 지역 검증만으로는 못 거른다.
+   등촌동처럼 동서로 2.3km 뻗은 동에서는 이 좌표가 실제 건물과 2km 넘게 어긋난다. */
+function exactAddrOk(r, wantLot){
+  var t=String(r&&r.address_type||'');
+  if(t==='REGION'||t==='ROAD')return false;        // 동 단위·도로 단위 = 건물 위치가 아님
+  if(!wantLot)return true;
+  var got=lotOfResult(r);
+  if(!got)return true;                             // 도로명주소로 온 결과는 지번 비교 생략
+  var norm=function(v){return String(v).replace(/[^0-9-]/g,'');};   // "산 12-3" → "12-3"
+  return norm(got)===norm(wantLot);
+}
+function guOfComplex(c){
+  var n=lawdNameMap[c.sigunguCd]||lawdNameMap[c.sggCd]||lawdNameMap[c.roadSgg];
+  return (n&&n.gu)||c.sggNm||curGu||'';
+}
+// 좌표가 실제로 어느 법정동인지 되물어 확인한다 (마지막 방어선)
+function dongAtCoord(lat,lng){
+  return new Promise(function(resolve){
+    var done=false;
+    var timer=setTimeout(function(){if(!done){done=true;resolve(null);}},6000);
+    try{
+      geo.coord2RegionCode(lng,lat,function(res,status){
+        if(done)return; done=true; clearTimeout(timer);
+        if(status!==kakao.maps.services.Status.OK||!res||!res.length)return resolve(null);
+        var b=res.find(function(x){return x.region_type==='B';})||res[0];
+        resolve({gu:b.region_2depth_name||'', dong:b.region_3depth_name||'', code:String(b.code||'')});
+      });
+    }catch(e){ if(!done){done=true;clearTimeout(timer);resolve(null);} }
+  });
+}
+
 // 카카오 주소검색을 Promise로 감싼다 (6초 상한 — 콜백이 안 오는 경우 대비)
-function geoSearch(q){
+// expect를 주면 그 지역이 아닌 결과는 버린다.
+function geoSearch(q, expect){
   return new Promise(function(resolve){
     var done=false;
     var timer=setTimeout(function(){if(!done){done=true;resolve(null);}},6000);
     try{
       geo.addressSearch(q,function(r,s){
         if(done)return; done=true; clearTimeout(timer);
-        resolve((s===kakao.maps.services.Status.OK&&r&&r.length)?r[0]:null);
+        if(s!==kakao.maps.services.Status.OK||!r||!r.length)return resolve(null);
+        if(!expect)return resolve(r[0]);
+        var hit=null, why='';
+        for(var i=0;i<r.length;i++){
+          if(!regionOk(r[i],expect.gu,expect.dong)){why=why||'다른 지역';continue;}
+          if(expect.exact&&!exactAddrOk(r[i],expect.lot)){why='필지 불일치('+(r[i].address_type||'')+(lotOfResult(r[i])?' → '+lotOfResult(r[i]):'')+')';continue;}
+          hit=r[i];break;
+        }
+        if(!hit)console.warn('[좌표 무시] "'+q+'" → '+resultAddrText(r[0])+' · '+why
+          +' (기대: '+(expect.gu||'')+' '+(expect.dong||'')+(expect.lot?' '+expect.lot:'')+')');
+        resolve(hit);
       });
     }catch(e){ if(!done){done=true;clearTimeout(timer);resolve(null);} }
   });
 }
-// 단지명 키워드 검색 (사업지 주변으로 제한, 법정동이 맞는 결과 우선)
+// 단지명 키워드 검색 (사업지 주변으로 제한 + 지역 확인)
 function nameSearch(ps,c){
+  var gu=guOfComplex(c);
   return new Promise(function(resolve){
     var done=false;
     var timer=setTimeout(function(){if(!done){done=true;resolve(null);}},8000);
@@ -1518,21 +1950,27 @@ function nameSearch(ps,c){
       ps.keywordSearch(sggName(c)+' '+c.dong+' '+c.name, function(result,status){
         if(done)return; done=true; clearTimeout(timer);
         if(status!==kakao.maps.services.Status.OK||!result||!result.length)return resolve(null);
-        var matched=result.find(function(r){return r.address_name&&r.address_name.indexOf(c.dong)!==-1;});
-        resolve({item:matched||result[0], loose:!matched});
+        // 법정동이 맞는 결과만 받는다 (법정동을 못 밝히는 결과는 시군구까지 확인)
+        var pick=result.find(function(r){return regionOk(r,gu,c.dong);});
+        if(!pick){
+          console.warn('[좌표 무시] 단지명 "'+c.name+'" → '+resultAddrText(result[0])+' (기대 지역: '+gu+' '+c.dong+')');
+          return resolve(null);
+        }
+        resolve({item:pick, loose:resultDong(pick)!==c.dong});
       },{location:new kakao.maps.LatLng(curLat,curLng),radius:Math.min(20000,selR*2)});
     }catch(e){ if(!done){done=true;clearTimeout(timer);resolve(null);} }
   });
 }
 async function geocodeComplex(ps,c){
+  var expect={gu:guOfComplex(c), dong:c.dong, exact:true};
   var road=roadAddr(c);
   if(road){
-    var h1=await geoSearch(road);
+    var h1=await geoSearch(road,expect);
     if(h1)return {hit:h1,src:'road'};
   }
   var jb=jibunAddr(c);
   if(jb){
-    var h2=await geoSearch(jb);
+    var h2=await geoSearch(jb,{gu:expect.gu,dong:expect.dong,exact:true,lot:lotText(c)});
     if(h2)return {hit:h2,src:'lot'};
   }
   var h3=await nameSearch(ps,c);
@@ -1574,6 +2012,7 @@ var LEDGER_ON=true;           // 헤더 체크박스로 토글
 var LEDGER_CACHE='kirt.ledger.v1.';
 var LEDGER_TTL=180*864e5;     // 건축물대장은 거의 불변 — 180일
 var ledgerMem={},ledgerInflight={},ledgerKeyWarned=false;
+var ledgerCalls=0;   // 이 세션에서 건축물대장을 몇 번 불렀는지 (일일 한도 진단용)
 
 // 공용부 용도 분류 키워드
 var RES_PUBUSE=/계단|복도|승강|엘리베이|E\.?V|홀|전실|현관|피난|부속실|공용통로/i;
@@ -1671,7 +2110,9 @@ async function loadLedger(c){
 function ensureLedger(c){
   if(!LEDGER_ON){c._ledger='off';return;}
   if(!c.ledgerKey){c._ledger='nokey';return;}
-  if(c._ledger&&c._ledger!=='error')return;
+  // 'off'는 "꺼져 있어서 안 받았다"는 표식이지 결과가 아니다.
+  // 다시 켰을 때 이걸 결과로 치면 영영 조회하지 않는다.
+  if(c._ledger&&c._ledger!=='error'&&c._ledger!=='off')return;
   c._ledger='loading';
   loadLedger(c).then(function(o){
     c._ledger=(o&&o.table&&o.table.length)?o:'empty';
@@ -1679,10 +2120,11 @@ function ensureLedger(c){
   }).catch(function(e){
     c._ledger='error';c._ledgerMsg=e.message;
     console.warn('[대장 조회 실패] '+c.name+': '+e.message);
-    // 인증키·권한 오류는 콘솔만 보면 모르므로 화면에 한 번 알린다
-    if(!ledgerKeyWarned&&/^(2\d|30|31|32)\b|SERVICE_KEY|ACCESS_DENIED|PERMISSION/i.test(e.message)){
-      ledgerKeyWarned=true;
-      setStatus('err','건축물대장 조회 권한 없음 — 공공데이터포털에서 "건축HUB_건축물대장정보 서비스" 활용신청 필요. 공급면적은 추정치로 표시됨');
+    var why=explainApiError(e.message);
+    if(why&&!ledgerKeyWarned){
+      ledgerKeyWarned=true;      // 한 번만 알린다 (단지마다 뜨면 화면이 잠긴다)
+      setStatus('err','건축물대장 '+why.short+' — '+why.how+
+        ' (코드 '+why.code+' · 이번 세션 대장 호출 '+ledgerCalls+'회 · 공급면적은 추정치로 표시됨)');
     }
     if(curComplex===c)refreshComplexViews();
   });
@@ -1732,14 +2174,23 @@ async function prefetchLedgers(keys){
   }
 }
 function toggleCanceled(on){
-  EXCLUDE_CANCELED=!!on;
+  EXCLUDE_CANCELED=!!on;markFilterDot();
   setStatus('info', on
     ? '해제거래 제외 — 다시 분석해야 집계에 반영됨'
     : '해제거래 포함 — 취소된 계약이 평균가에 섞임. 다시 분석해야 반영됨');
 }
 function toggleLedger(on){
-  LEDGER_ON=!!on;
-  if(curComplex){if(LEDGER_ON)ensureLedger(curComplex);else curComplex._ledger='off';refreshComplexViews();}
+  LEDGER_ON=!!on;markFilterDot();
+  if(!curComplex)return;
+  if(LEDGER_ON){
+    // 공급면적과 건축개요를 함께 되살린다 (둘 다 같은 대장에서 온다)
+    ensureLedger(curComplex);
+    ensureBuilding(curComplex, function(){ if(curComplex)refreshComplexViews(); });
+  }else{
+    curComplex._ledger='off';
+    curComplex._bld='off';
+  }
+  refreshComplexViews();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1850,6 +2301,7 @@ async function loadBuilding(c){
     var o={t:Date.now(),b:b};
     bldMem[ck]=o;
     try{localStorage.setItem(ck,JSON.stringify(o));}catch(e){}
+    console.log('[대장 호출 누적] '+ledgerCalls+'회');
     console.log('[건축개요] '+c.name+' → '+(b.hhld||'-')+'세대 / '+(b.dongs||'-')+'개동 / 준공 '+(ym(b.aprLast)||'-'),b);
     return o;
   })();
@@ -1859,7 +2311,7 @@ async function loadBuilding(c){
 function ensureBuilding(c, onDone){
   if(!LEDGER_ON){c._bld='off';if(onDone)onDone();return;}
   if(!c.ledgerKey){c._bld='nokey';if(onDone)onDone();return;}
-  if(c._bld&&c._bld!=='error'){if(onDone)onDone();return;}
+  if(c._bld&&c._bld!=='error'&&c._bld!=='off'){if(onDone)onDone();return;}
   c._bld='loading';
   loadBuilding(c).then(function(o){
     c._bld=(o&&o.b&&!o.b.empty)?o.b:'empty';
@@ -1952,13 +2404,22 @@ function renderCard(c){
     body='<div class="bld-note">'+msg+'</div>';
   }
 
+  // 같은 단지의 분양 공고가 붙어 있으면 맨 위에 한 줄로
+  var bunRow='';
+  if(c._bunyang){
+    var bs=getBunyangStatus(c._bunyang);
+    bunRow='<div class="bld-row"><span class="bld-k">분양</span><span class="bld-v">'+bs.txt+
+      (c._bunyang.TOT_SUPLY_HSHLDCO?' · '+Number(c._bunyang.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대':'')+
+      '</span></div>';
+  }
+
   el.innerHTML=
     '<div class="bld-head">'+
       '<div class="bld-name">'+c.name+'</div>'+
       '<div class="bld-sub">'+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+c.type+' · 사업지 '+dist+
         (c._geoSrc==='name'?' · 위치 추정':'')+'</div>'+
     '</div>'+
-    '<div class="bld-body">'+body+'</div>'+
+    '<div class="bld-body">'+bunRow+body+'</div>'+
     '<div class="bld-foot">'+
       '<span>평균 매매 <b>'+t.avgTxt+'</b> ('+t.cnt+'건)</span>'+
       (t.ratio?'<span>전세가율 <b>'+t.ratio+'%</b></span>':'')+
@@ -2016,7 +2477,7 @@ async function runAnalysis(){
   oftMks.forEach(m=>m.setMap(null));oftMks=[];
   overlays.forEach(o=>o.setMap(null));overlays=[];
   if(clusterer){clusterer.clear();clusterer=null;}
-  allComplexes={};selectedKeys.clear();closePanel();closeDetail();hideCard();
+  allComplexes={};complexIndex=[];selectedKeys.clear();closePanel();closeDetail();hideCard();
   statCanceled=0;statFetched=0;statTruncated=[];statLot=null;statGeo=null;
   var _at=document.getElementById('areaTag');if(_at)_at.style.display='none';
   bunyangLoaded=false;
@@ -2163,6 +2624,8 @@ async function runAnalysis(){
     if(geoFail.length)console.warn('[좌표 실패] '+geoFail.length+'개 단지가 지도에서 누락됨:',geoFail.slice(0,20).map(function(c){return c.name+' / '+c.dong;}));
     if(geoLoose.length)console.warn('[좌표 주의] 단지명 검색에서 법정동이 맞지 않아 첫 결과로 대체한 단지 '+geoLoose.length+'개:',geoLoose.slice(0,20).map(function(c){return c.name;}));
     statGeo={total:complexes.length,inR:inRadius.length,fail:geoFail.length,loose:geoLoose.length,src:bySrc};
+    // 반경 밖 단지도 좌표가 있으면 색인해 둔다 (분양 공고 위치 대조용)
+    complexIndex=complexes.filter(function(c){return c.lat&&c.lng;});
 
     // 지번 2차 보완 — 법정동코드만 없던 단지를 좌표로 되살린다
     setProg(96,'지번 보완 중...');
@@ -2220,6 +2683,11 @@ async function runAnalysis(){
       (function(k){
         labelDiv.querySelector('.cl-check').onclick=function(e){e.stopPropagation();toggleSelect(k);};
         labelDiv.querySelector('.cl-body').onclick=function(e){e.stopPropagation();hideCard();openComplex(k);};
+        // 점으로 줄어들면 본문이 감춰지므로 라벨 자체에서도 받는다
+        labelDiv.onclick=function(e){
+          if(!labelDiv.classList.contains('mini'))return;
+          e.stopPropagation();hideCard();openComplex(k);
+        };
         attachHover(labelDiv, k);
       })(key);
       var ol=new kakao.maps.CustomOverlay({position:pos,yAnchor:1.0,content:labelDiv,zIndex:1});
@@ -2262,6 +2730,7 @@ async function runAnalysis(){
     applyAreaToMap();      // 면적 필터가 걸려 있으면 반영한 상태로 그린다
     updateOverlay();
     kakao.maps.event.addListener(map,'zoom_changed',updateOverlay);
+    kakao.maps.event.addListener(map,'idle',scheduleDeclutter);
     kakao.maps.event.addListener(map,'zoom_changed',hideCard);
     kakao.maps.event.addListener(map,'dragstart',hideCard);
 
@@ -2308,8 +2777,9 @@ function openComplex(key){
   document.getElementById('tblArea').style.display='block';
   document.getElementById('chartArea').style.display='none';
   renderDetail();renderSummary();renderFilter();renderTable();
+  relayoutMap();
 }
-function closePanel(){document.getElementById('bottomPanel').classList.remove('open');curComplex=null;}
+function closePanel(){document.getElementById('bottomPanel').classList.remove('open');curComplex=null;relayoutMap();}
 
 // ── 선택 단지 바 렌더링 ──
 function renderSelectBar(){
@@ -2324,6 +2794,7 @@ function renderSelectBar(){
     var chk=el.querySelector('.cl-check');
     if(chk)chk.textContent=on?'V':'';
   });
+  scheduleDeclutter();
 
   var listEl=document.getElementById('selectList');
   listEl.innerHTML='';
@@ -2600,7 +3071,7 @@ async function exportExcel(){
   XLSX.writeFile(wb, '부동산분석_'+dateStr+'_'+selectedKeys.size+'개단지.xlsx');
   setStatus('ok','Excel 다운로드 완료 ('+selectedKeys.size+'개 단지, 3개 시트)');
 }
-function closeDetail(){document.getElementById('detailPanel').classList.remove('open');}
+function closeDetail(){document.getElementById('detailPanel').classList.remove('open');relayoutMap();}
 
 // ── 분양 단지 조회 ──
 var bunyangLoaded = false;
@@ -2629,7 +3100,7 @@ function bunyangUrl(page,perPage,gu){
       : '&'+encodeURIComponent('cond[HSSPLY_ADRES::LIKE]')+'='+encodeURIComponent(gu);
   }
   // 분양 API도 프록시를 태운다. direct 모드에서만 키가 URL에 실린다.
-  return API_MODE==='proxy' ? PROXY_BASE+'/public-data?dataset=subscription&'+p
+  return API_MODE==='proxy' ? PROXY_BASE+'/bunyang?'+p
                             : BUNYANG_API+'?'+p+(PK?'&serviceKey='+PK:'');
 }
 
@@ -2642,14 +3113,19 @@ async function bunyangPages(gu,maxPages){
     if(json&&json.ok===false)throw new Error(json.error||'분양 API 오류');
     if(!json.data||!json.data.length)break;
     out=out.concat(json.data);
-    if(json.totalCount!=null&&out.length>=json.totalCount)break;
+    // 실측 확인 (2026-09-26): 조건검색을 걸어도 totalCount는 **전체 건수(2,884)**로 온다.
+    // totalCount로 끝을 판단하면 영원히 안 끝나므로, 한 페이지가 덜 찼으면 마지막으로 본다.
+    if(json.data.length<perPage)break;
     page++;
   }
   return out;
 }
 
+// 공고 식별자. PBLANC_NO만으로도 지금은 겹치지 않지만(2,884건 전수 확인),
+// 원래 관리번호와 짝으로 쓰는 값이라 둘을 합쳐 쓴다.
 function bunyangKey(d){
-  return String(d.PBLANC_NO||d.HOUSE_MANAGE_NO||((d.HOUSE_NM||'')+'|'+(d.HSSPLY_ADRES||'')));
+  var a=String(d.HOUSE_MANAGE_NO||''), b=String(d.PBLANC_NO||'');
+  return (a||b) ? (a+'|'+b) : ((d.HOUSE_NM||'')+'|'+(d.HSSPLY_ADRES||''));
 }
 
 async function loadBunyang(){
@@ -2707,47 +3183,91 @@ function normBunyangAddr(a){
     .replace(/일원|일대|외\s*\d+\s*필지|번지|블록|블럭|[A-Za-z]{1,2}-?\d+\s*B?L?/g,' ')
     .replace(/\s+/g,' ').trim();
 }
-function placeSearch(q){
+function placeSearch(q, expect){
   return new Promise(function(resolve){
     var done=false;
     var timer=setTimeout(function(){if(!done){done=true;resolve(null);}},6000);
     try{
       new kakao.maps.services.Places().keywordSearch(q,function(r,s){
         if(done)return; done=true; clearTimeout(timer);
-        resolve((s===kakao.maps.services.Status.OK&&r&&r.length)?r[0]:null);
+        if(s!==kakao.maps.services.Status.OK||!r||!r.length)return resolve(null);
+        if(!expect)return resolve(r[0]);
+        var hit=null;
+        for(var i=0;i<r.length;i++){ if(regionOk(r[i],expect.gu,expect.dong)){hit=r[i];break;} }
+        if(!hit)console.warn('[분양 좌표 무시] "'+q+'" → '+resultAddrText(r[0])+' (기대 지역: '+(expect.gu||'')+')');
+        resolve(hit);
       },{location:new kakao.maps.LatLng(curLat,curLng),radius:Math.min(20000,selR*2)});
     }catch(e){ if(!done){done=true;clearTimeout(timer);resolve(null);} }
   });
 }
+// 이름이 같은 실거래 단지를 먼저 찾는다.
+// 공고의 지번은 사업 전 지번이라 지금은 없어진 경우가 많다
+// (등촌 지와인: 공고 633-10 → 현재 727). 단지 좌표를 쓰는 편이 정확하다.
+/* 같은 법정동 안에서만 이름을 맞춰 본다.
+   반경 밖 단지까지 모두 뒤진다(complexIndex). 분양 공고의 지번은 사업 전 것이라
+   믿을 수 없으므로, 실거래로 확인된 단지 위치가 있으면 그게 정답이다.
+   반경 밖이면 반경 밖인 대로 제자리에 찍혀 자연히 걸러진다. */
+function complexByHouseName(nm, dong){
+  var a=normHouseName(nm);
+  if(!a||a.length<3)return null;
+  for(var i=0;i<complexIndex.length;i++){
+    var c=complexIndex[i];
+    if(!c.lat)continue;
+    if(dong&&c.dong&&c.dong!==dong)continue;      // 법정동이 다르면 이름이 같아도 다른 단지
+    var b=normHouseName(c.name);
+    if(!b||b.length<3)continue;
+    var hit=(a===b)||(a.length>=4&&b.indexOf(a)!==-1)||(b.length>=4&&a.indexOf(b)!==-1);
+    if(hit)return c;
+  }
+  return null;
+}
 async function geoBunyang(d){
+  var dong=dongOfAddr(d.HSSPLY_ADRES);
+  var expect={gu:guOfAddr(d.HSSPLY_ADRES), dong:dong, exact:true, lot:lotOfAddr(d.HSSPLY_ADRES)};
+
+  // ① 같은 법정동에 같은 이름의 실거래 단지가 있으면 그 좌표를 그대로 쓴다.
+  //    공고 지번(사업 전)보다 실거래·대장으로 확인된 현재 위치가 언제나 정확하다.
+  var c=complexByHouseName(d.HOUSE_NM, dong);
+  if(c)return {y:String(c.lat),x:String(c.lng),address_name:'',__fromComplex:true};
+
+  // ② 공급위치 주소 — 법정동과 **필지**까지 맞는 결과만 받는다.
+  //    동 중심 좌표(address_type=REGION)는 받지 않는다. 등촌동처럼 2.3km 뻗은 동에서는
+  //    동 중심이 실제 건물과 2km 넘게 어긋나 엉뚱한 반경에 들어온다.
   var addr=normBunyangAddr(d.HSSPLY_ADRES);
   if(addr){
     var parts=addr.split(' ');
-    for(var drop=0; drop<3 && parts.length-drop>=3; drop++){
-      var hit=await geoSearch(parts.slice(0,parts.length-drop).join(' '));
+    for(var drop=0; drop<2 && parts.length-drop>=4; drop++){
+      var hit=await geoSearch(parts.slice(0,parts.length-drop).join(' '), expect);
       if(hit)return hit;
     }
   }
-  // 주소로 못 찾으면 단지명으로 — 신규 분양은 장소DB에 먼저 오르는 경우가 많다
-  return d.HOUSE_NM?await placeSearch(d.HOUSE_NM):null;
+  // ③ 주소로 못 찾으면 단지명으로. 장소DB는 이름만 비슷해도 다른 동네 상호를
+  //    돌려주므로 법정동을 모를 때는 아예 쓰지 않는다.
+  if(!dong)return null;
+  return d.HOUSE_NM?await placeSearch(d.HOUSE_NM, expect):null;
 }
 
 async function renderBunyangInRadius(){
   // 분양단지 지도 마커만 업데이트
 
-  // 분양 마커 초기화
+  // 분양 마커 초기화 — 클러스터러에 넣어 둔 것도 함께 뺀다
+  if(clusterer&&bunyangMarkers.length){try{clusterer.removeMarkers(bunyangMarkers);}catch(e){}}
   bunyangMarkers.forEach(m=>m.setMap(null)); bunyangMarkers=[];
   bunyangOverlays.forEach(o=>o.setMap(null)); bunyangOverlays=[];
 
-  var guNames=Array.from(new Set(
-    Object.keys(lawdNameMap).map(function(k){return lawdNameMap[k].gu;}).filter(Boolean)
-  ));
-  // 좌표 변환은 호출 비용이 크다. 주소에 반경 내 시군구 이름이 있는 것만 본다.
+  // 좌표 변환은 호출 비용이 크다. 주소가 반경 내 시·도와 시군구에 모두 맞는 것만 본다.
+  // 시군구 이름만 보면 "부산광역시 강서구"가 "서울특별시 강서구" 검색에 섞여 들어온다.
+  var regions=Object.keys(lawdNameMap).map(function(k){return lawdNameMap[k];});
   var cand=allBunyang.filter(function(d){return d.HSSPLY_ADRES||d.HOUSE_NM;});
-  if(guNames.length){
+  if(regions.length){
     var narrowed=cand.filter(function(d){
       var a=String(d.HSSPLY_ADRES||'');
-      return guNames.some(function(g){return a.indexOf(g)!==-1;});
+      return regions.some(function(r){
+        if(a.indexOf(r.gu)===-1)return false;
+        var sido=String(r.sido||'');
+        var short=sido.replace(/(특별자치시|특별자치도|특별시|광역시|자치시|자치도|[도시])$/,'');
+        return !short || a.indexOf(short)!==-1;
+      });
     });
     if(narrowed.length)cand=narrowed;
   }
@@ -2760,10 +3280,26 @@ async function renderBunyangInRadius(){
     var lat=parseFloat(hit.y),lng=parseFloat(hit.x);
     if(!isFinite(lat)||!isFinite(lng))return;
     var dist=getDist(curLat,curLng,lat,lng);
-    if(dist<=selR){ d._lat=lat; d._lng=lng; d._dist=Math.round(dist); inRadius.push(d); }
+    if(dist<=selR){ d._lat=lat; d._lng=lng; d._dist=Math.round(dist); d._geoFromComplex=!!hit.__fromComplex; inRadius.push(d); }
   }, GEO_CONCURRENCY);
 
-  console.log('[분양] 좌표 대상 '+cand.length+'건 · 반경 내 '+inRadius.length+'건');
+  // 반경 안에 들어온 것만 좌표를 되물어 법정동을 확인한다.
+  // 공고 주소의 법정동과 실제 좌표의 법정동이 다르면 잘못 찍힌 것이다.
+  var verified=[];
+  await runPool(inRadius, async function(d){
+    var want=dongOfAddr(d.HSSPLY_ADRES);
+    if(!want||d._geoFromComplex){verified.push(d);return;}
+    var at=await dongAtCoord(d._lat,d._lng);
+    if(!at||!at.dong){verified.push(d);return;}          // 확인 불가면 그대로 둔다
+    if(at.dong===want){verified.push(d);return;}
+    console.warn('[분양 위치 폐기] '+d.HOUSE_NM+' — 공고는 '+want+'인데 찍힌 좌표는 '
+      +(at.gu||'')+' '+at.dong+' ('+d._dist+'m)');
+  }, GEO_CONCURRENCY);
+  var dropped=inRadius.length-verified.length;
+  inRadius=verified;
+
+  console.log('[분양] 좌표 대상 '+cand.length+'건 · 반경 내 '+inRadius.length+'건'
+    +(dropped?' (법정동 불일치 '+dropped+'건 제외)':''));
   bunyangLoaded = true;
 
   // 상태바에 분양단지 수 업데이트
@@ -2776,12 +3312,24 @@ async function renderBunyangInRadius(){
 
   // 거리순 정렬
   inRadius.sort(function(a,b){ return a._dist - b._dist; });
-  console.log('분양단지 반경내:', inRadius.length);
 
-  // 지도에 마커 표시
+  // ── 실거래 단지와 같은 곳이면 라벨을 합친다 ──
+  // 분양 중인 단지가 실거래에도 잡히면 같은 자리에 라벨이 둘 서서 글자가 겹쳤다.
+  // 같은 단지로 판정되면 마커를 따로 세우지 않고 단지 라벨 안에 분양 줄을 붙인다.
+  var mergedCnt=0;
   inRadius.forEach(function(d){
+    var m=matchBunyangToComplex(d);
+    if(!m)return;
+    m.c._bunyang=d; d._mergedKey=m.key;
+    paintBunyangOnLabel(m.key);
+    mergedCnt++;
+  });
+  var standalone=inRadius.filter(function(d){return !d._mergedKey;});
+  console.log('[분양] 반경 내 '+inRadius.length+'건 · 단지 라벨과 합침 '+mergedCnt+' · 단독 표시 '+standalone.length);
+
+  // 실거래가 없는 신규 분양만 따로 세운다
+  standalone.forEach(function(d){
     var pos = new kakao.maps.LatLng(d._lat, d._lng);
-    var dist = d._dist >= 1000 ? (d._dist/1000).toFixed(1)+'km' : d._dist+'m';
 
     // 투명 마커 (클릭용)
     var mk = new kakao.maps.Marker({
@@ -2791,47 +3339,95 @@ async function renderBunyangInRadius(){
         new kakao.maps.Size(1,1)
       )
     });
-    mk.setMap(map);
+    if(!clusterer)mk.setMap(map);     // 클러스터러가 있으면 아래에서 한 번에 넣는다
     bunyangMarkers.push(mk);
 
-    // 분양 오버레이 - 깃발 모양 + 점선 테두리
-    var olDiv = document.createElement('div');
-    olDiv.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;cursor:pointer;user-select:none;';
-
-    // 상태 판단
+    // 단지 라벨과 같은 형태 — 흰 바탕에 브라운 테두리로만 구분한다
+    // 실거래 라벨과 달리 선택(체크) 네모가 없다 — Excel 대상이 아니기 때문.
+    // 한 줄로만 적고 상태·일정·분양가는 클릭했을 때 패널에서 본다.
     var _st = getBunyangStatus(d);
-    var statusTxt=_st.txt, statusBg=_st.bg;
-
+    var olDiv = document.createElement('div');
+    olDiv.className = 'bunyang-label';
+    olDiv.title = _st.txt + (d.TOT_SUPLY_HSHLDCO?' · '+Number(d.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대':'')
+                + (d.HSSPLY_ADRES?' · '+d.HSSPLY_ADRES:'');
     olDiv.innerHTML =
-      '<div style="display:flex;align-items:stretch">'+
-        // 깃발 폴
-        '<div style="width:2px;background:#B3B3B3;min-height:40px;flex-shrink:0"></div>'+
-        // 라벨 박스
-        '<div style="'+
-          'background:white;'+
-          'border:1px solid #6A2C00;'+
-          'border-left:4px solid #6A2C00;'+
-          'padding:5px 10px 5px 8px;'+
-          'display:flex;flex-direction:column;gap:2px;min-width:80px;">'+
-            '<div style="display:flex;align-items:center;gap:4px;">'+
-              '<span style="font-size:10px;font-weight:700;color:#41548B;white-space:nowrap">'+d.HOUSE_NM+'</span>'+
-            '</div>'+
-            '<div style="display:flex;gap:4px;align-items:center;">'+
-              '<span style="font-size:9px;padding:1px 5px;border-radius:0;background:'+statusBg+';color:white;font-weight:600">'+statusTxt+'</span>'+
-              (d.TOT_SUPLY_HSHLDCO?'<span style="font-size:9px;color:#666666">'+Number(d.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대</span>':'')+
-            '</div>'+
-        '</div>'+
-      '</div>';
+      '<div class="bl-box" style="border-left-color:'+_st.bg+'">'+
+        '<span class="bl-tag">분양</span>'+
+        '<span class="bl-name">'+d.HOUSE_NM+'</span>'+
+        (d.TOT_SUPLY_HSHLDCO?'<span class="bl-cnt">'+Number(d.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대</span>':'')+
+      '</div>'+
+      '<div class="bl-tail"></div>';
     olDiv.onclick = function(){ openBunyangDetail(d); };
 
-    var ol = new kakao.maps.CustomOverlay({position:pos, yAnchor:1.0, content:olDiv, zIndex:2});
+    // 가까이에 단지 라벨이 있으면 한 칸 위로 올려 겹치지 않게 한다
+    var near=nearestComplexDist(d);
+    var ol = new kakao.maps.CustomOverlay({position:pos, yAnchor:(near<120?2.15:1.0), content:olDiv, zIndex:2});
     ol.setMap(map);
     bunyangOverlays.push(ol);
     kakao.maps.event.addListener(mk, 'click', function(){ openBunyangDetail(d); });
   });
 
-  // 목록 렌더링
-  console.log('반경 내 분양단지:', inRadius.length);
+  // 실거래 단지와 같은 클러스터러에 넣는다. 확대하기 전(레벨 4 이상)에는
+  // 분양단지도 묶음 숫자에 함께 들어가야 "이 동네에 몇 개"가 맞는다.
+  if(clusterer&&bunyangMarkers.length){
+    try{ clusterer.addMarkers(bunyangMarkers); }
+    catch(e){ bunyangMarkers.forEach(function(m){m.setMap(map);}); }
+  }
+  updateOverlay();
+}
+
+/* 분양 공고와 실거래 단지가 같은 곳인지 — 이름과 거리를 같이 본다.
+   이름 표기는 "OO자이(2단지)"처럼 제각각이라 괄호·공백·유형어를 떼고 비교한다. */
+function normHouseName(s){
+  return String(s||'').replace(/\([^)]*\)/g,'').replace(/[\s·・,]/g,'')
+    .replace(/(아파트|오피스텔|주상복합)$/,'').toLowerCase();
+}
+function nearestComplexDist(d){
+  var best=Infinity;
+  Object.keys(allComplexes).forEach(function(k){
+    var c=allComplexes[k];
+    if(!c.lat)return;
+    var dist=getDist(d._lat,d._lng,c.lat,c.lng);
+    if(dist<best)best=dist;
+  });
+  return best;
+}
+function matchBunyangToComplex(d){
+  var a=normHouseName(d.HOUSE_NM);
+  var dong=dongOfAddr(d.HSSPLY_ADRES);
+  var best=null;
+  Object.keys(allComplexes).forEach(function(k){
+    var c=allComplexes[k];
+    if(!c.lat||c._bunyang)return;
+    if(dong&&c.dong&&c.dong!==dong)return;      // 법정동이 먼저 — 다르면 같은 단지가 아니다
+    var dist=getDist(d._lat,d._lng,c.lat,c.lng);
+    if(dist>400)return;
+    var b=normHouseName(c.name);
+    var nameHit=a&&b&&a.length>=3&&b.length>=3&&
+      (a===b||(a.length>=4&&b.indexOf(a)!==-1)||(b.length>=4&&a.indexOf(b)!==-1));
+    // 50m 안이면 사실상 같은 자리, 이름이 맞으면 400m까지 본다
+    if(!(dist<=50||(nameHit&&dist<=400)))return;
+    if(!best||dist<best.dist)best={key:k,c:c,dist:dist};
+  });
+  return best;
+}
+// 단지 라벨에 분양 줄을 붙인다 (이미 있으면 갱신)
+function paintBunyangOnLabel(key){
+  var ol=overlays.filter(function(o){return o.__key===key;})[0];
+  var c=allComplexes[key];
+  if(!ol||!ol.__el||!c||!c._bunyang)return;
+  var body=ol.__el.querySelector('.cl-body');
+  if(!body)return;
+  var st=getBunyangStatus(c._bunyang);
+  var chip=body.querySelector('.cl-bun');
+  if(!chip){
+    chip=document.createElement('span');
+    chip.className='cl-bun';
+    body.appendChild(chip);
+  }
+  chip.style.background=st.bg;
+  chip.textContent=st.txt+(c._bunyang.TOT_SUPLY_HSHLDCO
+    ? ' · '+Number(c._bunyang.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대' : '');
 }
 
 function openBunyangDetail(d){
@@ -2841,14 +3437,15 @@ function openBunyangDetail(d){
 
   // 하단 패널 열기 - 분양정보 탭으로
   curComplex = null; // 기존 아파트 선택 해제
-  document.getElementById('bottomPanel').classList.add('open');
+  document.getElementById('bottomPanel').classList.add('open');relayoutMap();
   document.getElementById('bpTitle').textContent = '' + (d.HOUSE_NM||'-') + ' · 분양 정보';
   document.getElementById('bpMeta').textContent =
     (d.HSSPLY_ADRES||'') +
     (d.TOT_SUPLY_HSHLDCO ? ' · '+Number(d.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대' : '') +
     (d._dist ? ' · 사업지 '+dist : '');
 
-  // 요약 스트립 - 분양 정보로
+  // 요약 스트립 - 분양 정보로 (분양은 우측 상세가 따로 없어 여기에 남긴다)
+  document.getElementById('summaryStrip').style.display = '';
   document.getElementById('summaryStrip').innerHTML =
     '<div class="sc"><div class="sc-val" style="color:#6A2C00">'+_st.txt+'</div><div class="sc-lbl">분양상태</div></div>'+
     '<div class="sc"><div class="sc-val">'+(d.TOT_SUPLY_HSHLDCO?Number(d.TOT_SUPLY_HSHLDCO).toLocaleString():'-')+'</div><div class="sc-lbl">총 공급세대</div></div>'+
@@ -2858,7 +3455,6 @@ function openBunyangDetail(d){
 
   // 탭바 숨기고 분양정보만 표시
   document.getElementById('filterBar').innerHTML = '';
-  document.getElementById('areaNoteBar').style.display = 'none';
   document.querySelectorAll('.tab').forEach(function(t){t.style.display='none';});
   document.getElementById('tblArea').style.display = 'block';
   document.getElementById('chartArea').style.display = 'none';
@@ -2893,11 +3489,12 @@ function openBunyangDetail(d){
     tbl += '<div style="font-size:11px;color:var(--ui-ink-3);padding:8px 14px">분양가 정보는 공고문에서 확인하세요</div>';
   }
 
-  if(d.PBLANC_URL || d.HMPG_ADRES){
+  // 홈페이지(HMPG_ADRES)는 분양 당시 사이트라 지금은 없어지거나 다른 곳으로
+  // 넘어간 경우가 많아 뺐다. 청약홈 공고문만 남긴다 (영구 보존 주소).
+  if(d.PBLANC_URL){
     tbl += '<div style="padding:12px 14px 4px;font-size:11px;font-weight:700;color:#6A2C00;">관련 링크</div>';
     tbl += '<div style="padding:4px 14px;display:flex;gap:10px;">';
-    if(d.PBLANC_URL) tbl += '<a href="'+d.PBLANC_URL+'" target="_blank" style="font-size:12px;color:#41548B;font-weight:600;text-decoration:none;padding:6px 12px;border:1px solid #41548B;border-radius:0;">분양공고 보기</a>';
-    if(d.HMPG_ADRES) tbl += '<a href="'+d.HMPG_ADRES+'" target="_blank" style="font-size:12px;color:#6A2C00;font-weight:600;text-decoration:none;padding:6px 12px;border:1px solid #6A2C00;border-radius:0;">홈페이지</a>';
+    tbl += '<a href="'+d.PBLANC_URL+'" target="_blank" rel="noopener" style="font-size:12px;color:#41548B;font-weight:600;text-decoration:none;padding:6px 12px;border:1px solid #41548B;border-radius:0;">분양공고 보기</a>';
     tbl += '</div>';
   }
 
@@ -2906,7 +3503,7 @@ function openBunyangDetail(d){
   document.getElementById('tblArea').innerHTML = tbl;
 
   // 우측 상세 패널 열기
-  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('detailPanel').classList.add('open');relayoutMap();
   document.getElementById('dpTitle').textContent = '' + (d.HOUSE_NM||'-');
   document.getElementById('dpSub').textContent = (d.HSSPLY_ADRES||'') + ' · 신규 분양';
 
@@ -2936,7 +3533,7 @@ function openBunyangDetail(d){
       ?'<div class="drow"><span class="dk">평균 분양가</span><span class="dv" style="color:#6A2C00">'+Number(d.MN_PRARNG_VM).toLocaleString()+'만원</span></div>':'') +
     (!d.LTTOT_TOP_AMOUNT&&!d.LTTOT_BSAMT&&!d.MN_PRARNG_VM
       ?'<div class="drow"><span style="font-size:11px;color:var(--ui-ink-3)">분양가는 공고문에서 확인하세요</span></div>':'') +
-    (d.PBLANC_URL?'<div class="drow"><span class="dk">분양 공고</span><a href="'+d.PBLANC_URL+'" target="_blank" style="font-size:11px;color:#41548B;font-weight:600">공고 보기 →</a></div>':'')+
+
   '</div>';
 
   // 섹션3: 청약 일정
@@ -2949,11 +3546,11 @@ function openBunyangDetail(d){
     '</div>';
   }
 
-  // 섹션4: 링크
-  if(d.HMPG_ADRES){
+  // 섹션4: 링크 — 공고문만 (홈페이지는 연결이 끊긴 경우가 많아 뺐다)
+  if(d.PBLANC_URL){
     html += '<div class="dsec"><div class="dsec-title">관련 링크</div>'+
-      '<div class="drow"><span class="dk">홈페이지</span>'+
-        '<a href="'+d.HMPG_ADRES+'" target="_blank" style="font-size:11px;color:#41548B;font-weight:600;text-decoration:none">바로가기 →</a></div>'+
+      '<div class="drow"><span class="dk">분양 공고</span>'+
+        '<a href="'+d.PBLANC_URL+'" target="_blank" rel="noopener" style="font-size:11px;color:#41548B;font-weight:600;text-decoration:none">공고 보기 →</a></div>'+
     '</div>';
   }
 
@@ -3050,6 +3647,28 @@ function lotCell(c){
     : '';
   return c.jibunTxt+' '+tag+warn;
 }
+/* 실거래 단지에 붙은 분양 공고 — 지도에서 라벨을 합쳤으니 상세도 같이 보여준다 */
+function renderBunyangSection(c){
+  var d=c._bunyang;
+  if(!d)return '';
+  var st=getBunyangStatus(d);
+  var money=[['최고 분양가',d.LTTOT_TOP_AMOUNT],['기본 분양가',d.LTTOT_BSAMT],['평균 분양가',d.MN_PRARNG_VM]]
+    .filter(function(m){return m[1]&&m[1]!=='0';})
+    .map(function(m){return '<div class="drow"><span class="dk">'+m[0]+'</span><span class="dv" style="color:#6A2C00">'+
+      Number(m[1]).toLocaleString()+'만원</span></div>';}).join('');
+  return '<div class="dsec"><div class="dsec-title">분양 공고 '+
+      '<span class="badge" style="background:'+st.bg+';color:#fff">'+st.txt+'</span></div>'+
+    '<div class="drow"><span class="dk">공고명</span><span class="dv" style="font-size:11px;text-align:right;max-width:170px;line-height:1.4">'+(d.HOUSE_NM||'-')+'</span></div>'+
+    (d.TOT_SUPLY_HSHLDCO?'<div class="drow"><span class="dk">총 공급세대</span><span class="dv blue">'+Number(d.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대</span></div>':'')+
+    (d.RCRIT_PBLANC_DE?'<div class="drow"><span class="dk">모집공고일</span><span class="dv" style="font-size:11px">'+d.RCRIT_PBLANC_DE+'</span></div>':'')+
+    (d.MVN_PREARNGE_YM?'<div class="drow"><span class="dk">입주예정</span><span class="dv" style="font-size:11px">'+d.MVN_PREARNGE_YM+'</span></div>':'')+
+    money+
+    (d.PBLANC_URL?'<div class="drow"><span class="dk">공고문</span><a href="'+d.PBLANC_URL+'" target="_blank" style="font-size:11px;color:#41548B;font-weight:600">공고 보기 →</a></div>':'')+
+    '<div class="drow"><span class="dk"></span><a href="javascript:void(0)" onclick="openBunyangDetail(allComplexes[\''+
+      String(c.key||'').replace(/'/g,"\\'")+'\']._bunyang)" style="font-size:11px;color:#41548B;font-weight:600">분양 정보 전체 보기 →</a></div>'+
+  '</div>';
+}
+
 // 좌표를 무엇으로 찾았는지 — 위치 신뢰도를 값과 같이 보여준다
 function geoSrcCell(c){
   if(c._geoSrc==='road')return '<span class="badge b-apt" title="도로명주소로 변환 — 단지 고유 주소">도로명</span>';
@@ -3061,7 +3680,7 @@ function geoSrcCell(c){
 function renderDetail(){
   if(!curComplex)return;
   var c=curComplex;
-  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('detailPanel').classList.add('open');relayoutMap();
   document.getElementById('dpTitle').textContent=c.name;
   document.getElementById('dpSub').textContent=c.dong+(c.buildYear?' · '+c.buildYear+'년 건축':'');
 
@@ -3115,6 +3734,9 @@ function renderDetail(){
     '<div class="drow"><span class="dk">최근 거래</span><span class="dv" style="font-size:11px">'+lastD+'</span></div>'+
   '</div>';
 
+  // 섹션1.2: 이 단지의 분양 공고 (실거래와 같은 단지로 판정된 경우)
+  html+=renderBunyangSection(c);
+
   // 섹션1.5: 건축개요 (총괄표제부 + 표제부)
   html+=renderBuildingSection(c);
 
@@ -3157,22 +3779,15 @@ function renderDetail(){
 }
 
 // ── 요약 스트립 ──
+/* 하단 패널의 요약 숫자 띠는 없앴다.
+   같은 값(매매건수·평균·최저·최고·전세가율)이 우측 상세 패널에 이미 있어
+   두 번 읽히고, 하단 패널 높이의 1/6을 차지해 정작 표가 그만큼 잘렸다.
+   분양 정보는 상세 패널이 따로 없으므로 그쪽에서만 이 띠를 쓴다. */
 function renderSummary(){
-  if(!curComplex)return;
-  var trades=applyAreaF(applyPF(applyAF(curComplex.trades)));
-  var rents=applyAreaF(applyAF(curComplex.rents));
-  var amts=trades.map(d=>parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-  var avg=amts.length?Math.round(amts.reduce((a,b)=>a+b,0)/amts.length):0;
-  var jAmts=rents.filter(d=>d._rt==='전세').map(d=>parseInt((d.deposit||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-  var jAvg=jAmts.length?Math.round(jAmts.reduce((a,b)=>a+b,0)/jAmts.length):0;
-  var ratio=avg>0&&jAvg>0?Math.round(jAvg/avg*100):0;
-  var ratioColor=ratio>=80?'color:#6A2C00':ratio>=70?'color:#A37E51':'color:#41548B';
-  document.getElementById('summaryStrip').innerHTML=
-    '<div class="sc"><div class="sc-val" style="color:#41548B">'+amts.length+'</div><div class="sc-lbl">매매건수</div></div>'+
-    '<div class="sc"><div class="sc-val">'+(avg?fmt(avg):'-')+'</div><div class="sc-lbl">평균매매가(만)</div></div>'+
-    '<div class="sc"><div class="sc-val" style="color:#41548B">'+(amts.length?fmt(Math.min(...amts)):'-')+'</div><div class="sc-lbl">최저가(만)</div></div>'+
-    '<div class="sc"><div class="sc-val" style="color:#6A2C00">'+(amts.length?fmt(Math.max(...amts)):'-')+'</div><div class="sc-lbl">최고가(만)</div></div>'+
-    '<div class="sc"><div class="sc-val" style="'+ratioColor+'">'+(ratio?ratio+'%':'-')+'</div><div class="sc-lbl">전세가율</div></div>';
+  var el=document.getElementById('summaryStrip');
+  if(!el)return;
+  el.innerHTML='';
+  el.style.display='none';
 }
 
 // ── 면적 필터 ──
@@ -3185,7 +3800,8 @@ function renderFilter(){
   var pf=getPF();
   var pfTag=pf.min||pf.max?'<span style="font-size:10px;color:#A37E51;margin-left:4px">'+(pf.min?fmt(pf.min)+'만~':'')+(pf.max?'~'+fmt(pf.max)+'만':'')+'</span>':'';
   var afTag=afActive()?'<span style="font-size:10px;color:#A37E51;margin-left:5px">· 전용 '+afLabel()+'</span>':'';
-  var html='<span style="font-size:11px;color:#B3B3B3;font-weight:600">타입'+afTag+pfTag+'</span>';
+  var html=(curTab!=='chart'?supplySrcBadge(curComplex):'')+
+    '<span style="font-size:11px;color:#B3B3B3;font-weight:600">타입'+afTag+pfTag+'</span>';
   html+='<button class="fbtn'+(curAreaF==='all'?' active':'')+'" onclick="setAreaF(\'all\')">전체 ('+data.length+')</button>';
   AREA_TYPES.forEach(function(t){if(!existTypes.has(t.key))return;html+='<button class="fbtn'+(curAreaF===t.key?' active':'')+'" onclick="setAreaF(\''+t.key+'\')" title="'+t.desc+'">'+t.label+' <span style="opacity:.7;font-size:10px">('+( typeCounts[t.key]||0)+')</span></button>';});
   html+='<div class="fsep"></div><div style="display:flex;align-items:center;gap:5px;margin-left:auto">'+
@@ -3199,19 +3815,21 @@ function renderFilter(){
     '</div>';
   document.getElementById('filterBar').innerHTML=html;
 
-  // 면적 주석
-  var yr=parseInt((curComplex.buildYear||'0'));
+}
+
+/* 공급면적이 실측인지 추정인지 — 예전엔 줄 하나를 따로 썼다.
+   208px 패널에서 그 한 줄이 표 한 행과 맞먹어, 배지로 줄이고 설명은 툴팁에 담았다. */
+function supplySrcBadge(c){
+  var yr=parseInt(c.buildYear||'0');
   var ru=yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
-  var noteBar=document.getElementById('areaNoteBar');
-  if(curTab!=='chart'){
-    noteBar.style.display='block';
-    var led=curComplex._ledger;
-    noteBar.textContent='※ 전용면적 기준 · '+curComplex.type+' · 공급면적 '+(
-      (led&&typeof led==='object')
-        ? '= 건축물대장 실측 (전유 + 주거공용, '+led.ho.toLocaleString()+'호 기준)'
-        : (led==='loading' ? '대장 조회 중 — 표는 우선 추정치 표시'
-          : '= 건축년도 기반 추정 (전용률 '+ru+'%)'));
-  }else{noteBar.style.display='none';}
+  var led=c._ledger;
+  var real=led&&typeof led==='object';
+  var txt=real?'공급 대장실측':(led==='loading'?'공급 조회중':'공급 추정 '+ru+'%');
+  var tip=real
+    ? '공급면적 = 건축물대장 실측 (전유 + 주거공용, '+led.ho.toLocaleString()+'호 기준) · 표의 면적은 전용면적 기준'
+    : (led==='loading' ? '건축물대장 조회 중 — 표는 우선 추정치로 표시합니다'
+      : '공급면적 = 건축년도 기반 추정 (전용률 '+ru+'%) · 표의 면적은 전용면적 기준');
+  return '<span class="badge '+(real?'b-apt':'b-warn')+'" title="'+tip+'">'+txt+'</span>';
 }
 function setAreaF(f){curAreaF=f;renderFilter();renderSummary();renderTable();}
 function applyPanelPrice(){document.getElementById('priceMin').value=document.getElementById('pinMin').value||'';document.getElementById('priceMax').value=document.getElementById('pinMax').value||'';renderFilter();renderSummary();renderTable();}
@@ -3385,6 +4003,7 @@ function renderChart(){
 //  프록시 모드 감지가 조용히 실패한다.)
 initPeriod();
 initKeyboard();
+initBottomResize();
 bootstrap();
 </script>
 </body>
