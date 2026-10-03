@@ -252,6 +252,14 @@ button{font-family:inherit}
 .complex-label.mini:hover{z-index:9}
 .complex-label .cl-name{font-size:11px;font-weight:600;white-space:nowrap}
 .complex-label .cl-avg{font-size:10px;font-weight:700;opacity:.92}
+.complex-label .cl-est{font-size:8.5px;font-weight:600;opacity:.75;margin-left:3px}
+.leg-price{display:flex;align-items:center;gap:6px;color:var(--ui-ink-2)}
+.leg-price .lp-title{white-space:nowrap}
+.leg-price .lp-title small{font-size:9.5px;color:var(--ui-ink-3);margin-left:2px}
+.leg-price .lp-steps{display:flex;gap:2px}
+.leg-price .lp-step{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:34px}
+.leg-price .lp-sw{width:100%;height:9px;border:1px solid rgba(0,0,0,.14)}
+.leg-price .lp-lbl{font-size:9px;color:var(--ui-ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
 /* 실거래가 있는 단지가 분양 중이기도 하면, 마커를 따로 세우지 않고
    같은 라벨 안에 한 줄로 붙인다 (예전에는 두 라벨이 겹쳐 글자가 엉켰다) */
 .complex-label .cl-bun{margin-top:2px;background:var(--kirt-brown);color:#fff;
@@ -666,12 +674,8 @@ tr:last-child td{border-bottom:none}
       <div class="map-legend">
         <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-brown)"></div>사업지</div>
         <div class="leg-sep"></div>
-        <div class="leg-item">
-          <span style="color:var(--ui-ink-2)">아파트 평균가</span>
-          <div class="leg-ramp" title="밝을수록 저가, 어두울수록 고가"></div>
-          <span style="font-size:9.5px;color:var(--ui-ink-3)">저 → 고</span>
-        </div>
-        <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-tan)"></div>오피스텔</div>
+        <div class="leg-price" id="legApt" title="아파트 평당가 = 거래금액 ÷ 공급면적(평). 건축물대장이 있으면 실측, 없으면 건축년도별 전용률로 추정"></div>
+        <div class="leg-price" id="legOft" title="오피스텔 평당가 = 거래금액 ÷ 전용면적(평)"></div>
         <div class="leg-item"><div class="leg-sw" style="background:#fff;border:1px solid var(--kirt-brown);border-left:3px solid var(--kirt-brown)"></div>신규분양</div>
         <div class="leg-sep"></div>
         <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-navy);border-radius:50%"></div>클러스터</div>
@@ -836,6 +840,123 @@ function getEstSupply(excluUseAr, buildYear){
     else             ratio=0.76;
   }
   return {supply:Math.round(area/ratio*10)/10, supplyPy:Math.round(area/ratio/3.3058*10)/10, ratio:Math.round(ratio*100)};
+}
+
+// ── 평당가 색상 (아파트=공급면적 기준, 오피스텔=전용면적 기준) ──
+// 두 유형은 기준 면적이 달라 한 눈금에 세우지 않는다. 유형별로 5단계, 단지 수가 고르게 나뉘도록(5분위) 끊는다.
+// 램프는 단일 색상 밝음→어두움 (검증: 명도 단조, 인접 단계 차이, 밝은 끝 대비 2:1 이상)
+var PY_RAMP={
+  '아파트':  ['#98B5DE','#6C9BD2','#4F74B5','#3A4C85','#232C52'],
+  '오피스텔':['#CDB08A','#B8936A','#A37E51','#7D5E3A','#553E25']
+};
+var PY_INK={'아파트':['#000','#000','#fff','#fff','#fff'],'오피스텔':['#000','#000','#000','#fff','#fff']};
+var PY_BREAKS={'아파트':[],'오피스텔':[]};
+var PY_M2=3.3058;
+
+// 저장된 건축물대장이 있으면 네트워크 호출 없이 붙인다 (클릭했거나 예전에 받아둔 단지)
+function ledgerFromCache(c){
+  if(!c||c.type!=='아파트')return;
+  if(c._ledger&&typeof c._ledger==='object')return;
+  if(!c.ledgerKey||typeof LEDGER_CACHE==='undefined')return;
+  var ck=LEDGER_CACHE+[c.sigunguCd,c.bjdongCd,c.bun,c.ji].join('-');
+  var o=ledgerMem[ck];
+  if(!o){
+    try{
+      var raw=localStorage.getItem(ck);
+      if(raw){var j=JSON.parse(raw);if(j&&j.t&&(Date.now()-j.t)<LEDGER_TTL){o=j;ledgerMem[ck]=j;}}
+    }catch(e){}
+  }
+  if(o&&o.table&&o.table.length)c._ledger=o;
+}
+
+// 단지 평당가(만원/평). 아파트는 거래마다 공급면적(대장 실측 → 없으면 추정)으로 나눈 뒤 평균
+function pyPrice(c,rows){
+  var sum=0,n=0,est=false;
+  rows.forEach(function(d){
+    var amt=parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;
+    var ar=parseFloat(d.excluUseAr||'0');
+    if(!(amt>0)||!(ar>0))return;
+    var py;
+    if(c.type==='오피스텔'){py=ar/PY_M2;}
+    else{
+      var sp=supplyOf(c,d.excluUseAr);
+      if(!sp||!(sp.supply>0))return;
+      if(sp.src!=='ledger')est=true;
+      py=sp.supply/PY_M2;
+    }
+    sum+=amt/py;n++;
+  });
+  return n?{v:Math.round(sum/n),est:est,n:n}:null;
+}
+
+// 5분위 경계 (100만원 단위로 반올림, 중복 제거)
+function pyBreaks(vals){
+  var a=vals.filter(function(v){return v>0;}).sort(function(x,y){return x-y;});
+  if(a.length<2)return [];
+  var out=[];
+  for(var i=1;i<5;i++){
+    var q=a[Math.min(a.length-1,Math.floor(a.length*i/5))];
+    var r=Math.round(q/100)*100;
+    if(r>a[0]&&r<=a[a.length-1]&&out.indexOf(r)===-1)out.push(r);
+  }
+  return out;
+}
+function pyClass(v,br){
+  var k=0;br.forEach(function(b){if(v>=b)k++;});
+  if(br.length>=4)return k;
+  return br.length?Math.round(k*4/br.length):2;      // 구간이 적으면 램프 전체에 펼친다
+}
+function pyFmt(v){
+  if(!v)return '-';
+  return v>=10000?(v/10000).toFixed(2)+'억/평':Math.round(v).toLocaleString('ko-KR')+'만/평';
+}
+function pyNum(v){return Math.round(v).toLocaleString('ko-KR');}
+
+function renderPriceLegend(){
+  [['아파트','legApt','아파트 평당가','공급·만원'],['오피스텔','legOft','오피스텔 평당가','전용·만원']].forEach(function(t){
+    var el=document.getElementById(t[1]);if(!el)return;
+    var br=PY_BREAKS[t[0]],ramp=PY_RAMP[t[0]];
+    var n=br.length+1,html='<span class="lp-title">'+t[2]+'<small>('+t[3]+')</small></span><div class="lp-steps">';
+    for(var i=0;i<n;i++){
+      var col=ramp[br.length>=4?i:(br.length?Math.round(i*4/br.length):2)];
+      var lbl=(i===0)?(br.length?'~'+pyNum(br[0]):'전체'):pyNum(br[i-1])+'~';
+      html+='<div class="lp-step"><div class="lp-sw" style="background:'+col+'"></div><span class="lp-lbl">'+lbl+'</span></div>';
+    }
+    el.innerHTML=html+'</div>';
+    el.style.display=PY_HAS[t[0]]?'flex':'none';
+  });
+}
+var PY_HAS={'아파트':false,'오피스텔':false};
+
+// 라벨 하나를 현재 눈금으로 칠한다
+function paintPriceLabel(ol){
+  var c=allComplexes[ol.__key]; if(!c||!ol.__el)return;
+  var ramp=PY_RAMP[c.type]||PY_RAMP['아파트'],inks=PY_INK[c.type]||PY_INK['아파트'];
+  var idx=ol.__py?pyClass(ol.__py.v,PY_BREAKS[c.type]||[]):2;
+  var color=ramp[idx],ink=inks[idx];
+  var box=ol.__el.querySelector('.cl-box');
+  var body=ol.__el.querySelector('.cl-body');
+  var tail=ol.__el.querySelector('.cl-tail');
+  var av=ol.__el.querySelector('.cl-avg');
+  if(!av&&body){av=document.createElement('span');av.className='cl-avg';body.appendChild(av);}
+  if(box)box.style.background=color;
+  if(body)body.style.color=ink;
+  if(tail)tail.style.borderTop='7px solid '+color;
+  if(av){
+    av.innerHTML=ol.__py?pyFmt(ol.__py.v)+(ol.__py.est?'<span class="cl-est">추정</span>':''):'-';
+    var basis=c.type==='오피스텔'?'전용면적 기준':(ol.__py&&ol.__py.est?'공급면적 기준 · 건축물대장 미조회로 전용률 추정 (상세를 열면 실측으로 바뀜)':'공급면적 기준 · 건축물대장 실측');
+    av.title='평당가 '+pyFmt(ol.__py&&ol.__py.v)+' — '+basis+(ol.__avg?' / 평균 거래가 '+(ol.__avg>=10000?(ol.__avg/10000).toFixed(1)+'억':ol.__avg.toLocaleString()+'만'):'');
+  }
+}
+// 대장을 새로 받은 단지만 실측으로 다시 계산 (눈금은 그대로 → 다른 단지 색이 바뀌지 않음)
+function refreshPriceFor(c){
+  if(typeof overlays==='undefined')return;
+  overlays.forEach(function(ol){
+    if(allComplexes[ol.__key]!==c)return;
+    var rows=afActive()?applyAF(c.trades):c.trades;
+    ol.__py=pyPrice(c,rows);
+    paintPriceLabel(ol);
+  });
 }
 
 // ── 기동 ──
@@ -1141,30 +1262,25 @@ function applyAreaToMap(){
     var amts=rows.map(function(d){return parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;})
                  .filter(function(v){return v>0;});
     ol.__avg=amts.length?Math.round(amts.reduce(function(a,b){return a+b;},0)/amts.length):0;
+    ledgerFromCache(c);
+    ol.__py=pyPrice(c,rows);
     ol.__n=rows.length;
     // 면적 필터가 걸린 상태에서 해당 면적 거래가 아예 없으면 숨긴다
     ol.__hidden = on && rows.length===0;
     if(!ol.__hidden&&ol.__avg>0)vals.push(ol.__avg);
   });
-  // 남은 단지 기준으로 색 눈금을 다시 잡는다
-  var pMin=vals.length?Math.min.apply(null,vals):0;
-  var pMax=vals.length?Math.max.apply(null,vals):1;
+  // 남은 단지 기준으로 유형별 평당가 눈금(5분위)을 다시 잡는다
+  var pv={'아파트':[],'오피스텔':[]};
   overlays.forEach(function(ol){
-    var c=allComplexes[ol.__key]; if(!c||!ol.__el)return;
-    var color;
-    if(c.type==='오피스텔')color='#A37E51';
-    else if(!ol.__avg||pMax===pMin)color=SEQ[2];
-    else{var r=(ol.__avg-pMin)/(pMax-pMin);color=SEQ[r<.25?0:r<.5?1:r<.75?2:3];}
-    var box=ol.__el.querySelector('.cl-box');
-    var body=ol.__el.querySelector('.cl-body');
-    var tail=ol.__el.querySelector('.cl-tail');
-    var av=ol.__el.querySelector('.cl-avg');
-    if(box)box.style.background=color;
-    if(body)body.style.color=(color===SEQ[0]||color===SEQ[1])?'#000':'#fff';
-    if(tail)tail.style.borderTop='7px solid '+color;
-    if(av)av.textContent=ol.__avg>=10000?(ol.__avg/10000).toFixed(1)+'억'
-                       :ol.__avg?ol.__avg.toLocaleString()+'만':'-';
+    var c=allComplexes[ol.__key]; if(!c||ol.__hidden||!ol.__py)return;
+    (pv[c.type]||pv['아파트']).push(ol.__py.v);
   });
+  PY_BREAKS['아파트']=pyBreaks(pv['아파트']);
+  PY_BREAKS['오피스텔']=pyBreaks(pv['오피스텔']);
+  PY_HAS['아파트']=pv['아파트'].length>0;
+  PY_HAS['오피스텔']=pv['오피스텔'].length>0;
+  overlays.forEach(paintPriceLabel);
+  renderPriceLegend();
   var shown=overlays.filter(function(ol){return !ol.__hidden;}).length;
   if(on)console.log('[면적 필터] '+afLabel()+' → '+shown+'/'+overlays.length+'개 단지');
   updateOverlay();
@@ -2117,6 +2233,7 @@ function ensureLedger(c){
   loadLedger(c).then(function(o){
     c._ledger=(o&&o.table&&o.table.length)?o:'empty';
     if(curComplex===c)refreshComplexViews();
+    refreshPriceFor(c);
   }).catch(function(e){
     c._ledger='error';c._ledgerMsg=e.message;
     console.warn('[대장 조회 실패] '+c.name+': '+e.message);
