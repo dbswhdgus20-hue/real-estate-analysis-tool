@@ -1,9 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["icn1"],
+  "regions": [
+    "icn1"
+  ],
   "functions": {
     "api/public-data.js": {
       "maxDuration": 30
+    },
+    "api/[route].js": {
+      "maxDuration": 60
     }
   }
 }

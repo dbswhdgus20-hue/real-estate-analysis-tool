@@ -15,6 +15,11 @@ const ODCLOUD = process.env.ODCLOUD_BASE || 'https://api.odcloud.kr';
 const PAGE_SIZE = 1000;      // 요청값. 서버가 깎으면 응답 numOfRows를 따른다
 const MAX_ROWS = 40000;      // 호출단위당 최대 행 수 (안전장치)
 const PAGE_CONCURRENCY = 8;  // 서버리스는 실행시간 상한이 있어 로컬보다 높게
+// 건축물대장(건축HUB)은 초당 호출 제한이 빡빡하다 (실측 2026-10-03: 8개 동시 호출로
+// 135페이지를 받다가 23 LIMITED_NUMBER_OF_SERVICE_REQUESTS_PER_SECOND_EXCEEDS_ERROR,
+// 이후 1분 넘게 해당 API 전체가 차단됨). 그래서 대장은 동시 호출을 줄이고 호출 간격을 둔다.
+const LEDGER_CONCURRENCY = 2;
+const LEDGER_MIN_INTERVAL_MS = 200;   // 호출 시작 간격 → 초당 최대 5회
 
 const parser = new XMLParser({ ignoreAttributes: true, trimValues: true });
 
@@ -54,18 +59,18 @@ const ROUTES = {
   'ledger-area': {
     path: '/1613000/BldRgstHubService/getBrExposPubuseAreaInfo',
     params: ['sigunguCd', 'bjdongCd', 'bun', 'ji', 'platGbCd'], cache: 'static',
-    pageSize: 100,
+    pageSize: 100, concurrency: LEDGER_CONCURRENCY, minIntervalMs: LEDGER_MIN_INTERVAL_MS,
   },
   // 건축개요 — 총괄표제부(단지 전체)와 표제부(동별)를 병합해 쓴다
   'ledger-recap': {
     path: '/1613000/BldRgstHubService/getBrRecapTitleInfo',
     params: ['sigunguCd', 'bjdongCd', 'bun', 'ji', 'platGbCd'], cache: 'static',
-    pageSize: 100,
+    pageSize: 100, concurrency: LEDGER_CONCURRENCY, minIntervalMs: LEDGER_MIN_INTERVAL_MS,
   },
   'ledger-title': {
     path: '/1613000/BldRgstHubService/getBrTitleInfo',
     params: ['sigunguCd', 'bjdongCd', 'bun', 'ji', 'platGbCd'], cache: 'static',
-    pageSize: 100,
+    pageSize: 100, concurrency: LEDGER_CONCURRENCY, minIntervalMs: LEDGER_MIN_INTERVAL_MS,
   },
 };
 
@@ -78,6 +83,20 @@ class UpstreamError extends Error {
    바로 다시 부르면 정상(00)으로 왔다. 쿼터 초과·키 오류는 재시도해도 같으므로 제외. */
 const TRANSIENT = /SERVICETIMEOUT|SERVICE_TIMEOUT|HTTP_ERROR|SERVER_ERROR|연결실패|일시적/i;
 const isTransient = (m) => TRANSIENT.test(String(m || ''));
+// 초당 호출 제한(23)은 잠시 쉬면 풀린다. 일일 한도 초과(22)는 쉬어도 안 풀리므로 제외.
+const RATE_LIMITED = /^23\b|PER_SECOND_EXCEEDS/i;
+const isRateLimited = (m) => RATE_LIMITED.test(String(m || '').trim());
+
+/* 라우트별 호출 간격 조절기 — 같은 함수 인스턴스 안에서 호출 시작 시각을 일정 간격으로 벌린다 */
+const nextSlot = {};
+async function throttle(spec) {
+  const gap = spec.minIntervalMs || 0;
+  if (!gap) return;
+  const now = Date.now();
+  const at = Math.max(now, nextSlot[spec.path] || 0);
+  nextSlot[spec.path] = at + gap;
+  if (at > now) await sleep(at - now);
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function itemsOf(json) {
@@ -135,6 +154,7 @@ async function fetchPage(spec, params, no, size, key) {
   const qs = new URLSearchParams({
     serviceKey: key, pageNo: String(no), numOfRows: String(size), ...params,
   });
+  await throttle(spec);
   const r = await fetch(`${BASE}${spec.path}?${qs}`, { signal: AbortSignal.timeout(25000) });
   const text = await r.text();
   const json = parser.parse(text);
@@ -149,24 +169,28 @@ async function fetchPage(spec, params, no, size, key) {
       ?? json?.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnAuthMsg ?? '';
     const err = json?.OpenAPI_ServiceResponse?.cmmMsgHeader?.errMsg ?? '';
     const full = `${code} ${msg} ${err}`.trim();
-    throw new UpstreamError(full, isTransient(full));
+    const e = new UpstreamError(full, isTransient(full) || isRateLimited(full));
+    e.rateLimited = isRateLimited(full);
+    throw e;
   }
   return json;
 }
 
-/** 일시 오류면 짧게 쉬었다 다시 부른다 (최대 3회) */
+/** 일시 오류면 쉬었다 다시 부른다. 일반 오류는 최대 3회, 초당 호출 제한은 최대 4회(점점 길게) */
 async function fetchPageRetry(spec, params, no, size, key) {
   let last;
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= 4; i++) {
     try {
       return await fetchPage(spec, params, no, size, key);
     } catch (e) {
       last = e;
       const again = e.transient || e.name === 'TimeoutError' || e.name === 'AbortError'
         || /fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e.message));
-      if (i === 3 || !again) throw e;
-      console.warn(`[재시도 ${i}/2] ${spec.path} p${no} → ${e.message}`);
-      await sleep(350 * i);
+      const max = e.rateLimited ? 4 : 3;
+      if (i >= max || !again) throw e;
+      const wait = e.rateLimited ? 1500 * 2 ** (i - 1) : 350 * i;
+      console.warn(`[재시도 ${i}/${max - 1}] ${spec.path} p${no} → ${e.message} (${wait}ms 대기)`);
+      await sleep(wait);
     }
   }
   throw last;
@@ -198,7 +222,7 @@ async function fetchAll(spec, params, key) {
       }
     };
     await Promise.all(
-      Array.from({ length: Math.min(PAGE_CONCURRENCY, nums.length) }, lane)
+      Array.from({ length: Math.min(spec.concurrency || PAGE_CONCURRENCY, nums.length) }, lane)
     );
     for (const g of out) rows = rows.concat(g);
   }
