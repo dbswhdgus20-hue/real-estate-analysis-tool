@@ -741,6 +741,13 @@ var KAKAO_KEY='';   // 카카오 JS 키는 브라우저 노출이 불가피 — 
       var today = new Date().toISOString().slice(0,10);
       var s = {txt:'', bg:'', desc:''};
 
+      // 입주예정월이 지났으면 이미 있는 단지다 — '분양' 상태로 보이지 않게 한다
+      var mv=String(d.MVN_PREARNGE_YM||'').replace(/[^0-9]/g,'').slice(0,6);
+      if(mv.length===6 && mv < today.slice(0,7).replace('-','')){
+        s.txt='입주완료'; s.bg='#B3B3B3'; s.desc='입주 '+mv.slice(0,4)+'.'+mv.slice(4);
+        return s;
+      }
+
       if(!d.RCEPT_BGNDE){
         s.txt='분양예정'; s.bg='#A37E51'; return s;
       }
@@ -3498,9 +3505,25 @@ async function renderBunyangInRadius(){
 
 /* 분양 공고와 실거래 단지가 같은 곳인지 — 이름과 거리를 같이 본다.
    이름 표기는 "OO자이(2단지)"처럼 제각각이라 괄호·공백·유형어를 떼고 비교한다. */
+// 브랜드 표기 통일 — 청약홈은 'e편한세상', 실거래는 '이편한세상'처럼 같은 단지를 달리 적는다
+// (거제 고현동 'e편한세상 거제 유로스카이' ↔ 실거래 '이편한세상거제유로스카이'가 안 맞아 분양단지로 따로 찍혔음)
+var BRAND_ALIAS=[
+  [/e-?편한세상/g,'이편한세상'],[/the샵|더#/g,'더샵'],[/i-?park|아이-파크/g,'아이파크'],
+  [/prugio/g,'푸르지오'],[/hillstate/g,'힐스테이트'],[/raemian/g,'래미안'],[/lottecastle/g,'롯데캐슬'],
+  [/xi/g,'자이'],[/sk/g,'에스케이'],[/lh/g,'엘에이치'],[/kcc/g,'케이씨씨'],[/gs/g,'지에스']
+];
 function normHouseName(s){
-  return String(s||'').replace(/\([^)]*\)/g,'').replace(/[\s·・,]/g,'')
-    .replace(/(아파트|오피스텔|주상복합)$/,'').toLowerCase();
+  var t=String(s||'').replace(/\([^)]*\)/g,'').replace(/[\s·・,\-_.]/g,'')
+    .replace(/(아파트|오피스텔|주상복합)$/,'').toLowerCase()
+    .replace(/e-?편한/g,'이편한').replace(/i-?park/g,'ipark');
+  BRAND_ALIAS.forEach(function(r){t=t.replace(r[0],r[1]);});
+  return t;
+}
+// 지번 비교용 ("1175", "1081-18", "산 12-3" → 본번·부번)
+function lotKey(s){
+  var m=String(s||'').replace(/번지/g,'').match(/(산\s*)?(\d+)(?:\s*-\s*(\d+))?/);
+  if(!m)return '';
+  return (m[1]?'산':'')+parseInt(m[2],10)+(m[3]&&parseInt(m[3],10)?'-'+parseInt(m[3],10):'');
 }
 function nearestComplexDist(d){
   var best=Infinity;
@@ -3525,8 +3548,11 @@ function matchBunyangToComplex(d){
     var b=normHouseName(c.name);
     var nameHit=a&&b&&a.length>=3&&b.length>=3&&
       (a===b||(a.length>=4&&b.indexOf(a)!==-1)||(b.length>=4&&a.indexOf(b)!==-1));
-    // 50m 안이면 사실상 같은 자리, 이름이 맞으면 400m까지 본다
-    if(!(dist<=50||(nameHit&&dist<=400)))return;
+    // 공고 지번이 단지 지번과 같으면 같은 단지 (공고 지번은 사업 전 것이라 다를 때가 많아 보조 신호로만 쓴다)
+    var lot=lotKey(lotOfAddr(d.HSSPLY_ADRES));
+    var lotHit=!!lot&&!!c.jibunTxt&&lotKey(c.jibunTxt)===lot;
+    // 50m 안이면 사실상 같은 자리, 이름이 맞으면 400m, 같은 동·같은 지번이면 1km까지 본다
+    if(!(dist<=50||(nameHit&&dist<=400)||(lotHit&&dist<=1000)))return;
     if(!best||dist<best.dist)best={key:k,c:c,dist:dist};
   });
   return best;
