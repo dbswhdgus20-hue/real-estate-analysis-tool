@@ -252,6 +252,13 @@ button{font-family:inherit}
 .complex-label.mini:hover{z-index:9}
 .complex-label .cl-name{font-size:11px;font-weight:600;white-space:nowrap}
 .complex-label .cl-avg{font-size:10px;font-weight:700;opacity:.92}
+.leg-price{display:flex;align-items:center;gap:6px;color:var(--ui-ink-2)}
+.leg-price .lp-title{white-space:nowrap}
+.leg-price .lp-title small{font-size:9.5px;color:var(--ui-ink-3);margin-left:2px}
+.leg-price .lp-steps{display:flex;gap:2px}
+.leg-price .lp-step{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:34px}
+.leg-price .lp-sw{width:100%;height:9px;border:1px solid rgba(0,0,0,.14)}
+.leg-price .lp-lbl{font-size:9px;color:var(--ui-ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
 /* 실거래가 있는 단지가 분양 중이기도 하면, 마커를 따로 세우지 않고
    같은 라벨 안에 한 줄로 붙인다 (예전에는 두 라벨이 겹쳐 글자가 엉켰다) */
 .complex-label .cl-bun{margin-top:2px;background:var(--kirt-brown);color:#fff;
@@ -561,7 +568,7 @@ tr:last-child td{border-bottom:none}
 
     <div class="h-line-right">
       <span class="badge b-warn" id="areaTag" style="display:none"></span>
-      <span class="badge b-warn" id="apiMode" title="확인 중">확인 중</span>
+      <span class="badge b-warn" id="apiMode" title="확인 중" style="display:none">확인 중</span>
       <img class="h-logo" alt="한국투자부동산신탁" src="data:image/png;base64,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"/>
     </div>
   </div>
@@ -664,14 +671,8 @@ tr:last-child td{border-bottom:none}
 
       <!-- 범례 -->
       <div class="map-legend">
-        <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-brown)"></div>사업지</div>
-        <div class="leg-sep"></div>
-        <div class="leg-item">
-          <span style="color:var(--ui-ink-2)">아파트 평균가</span>
-          <div class="leg-ramp" title="밝을수록 저가, 어두울수록 고가"></div>
-          <span style="font-size:9.5px;color:var(--ui-ink-3)">저 → 고</span>
-        </div>
-        <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-tan)"></div>오피스텔</div>
+        <div class="leg-price" id="legApt" title="아파트 평당가 = 거래금액 ÷ 공급면적(평). 건축물대장이 있으면 실측, 없으면 건축년도별 전용률로 추정"></div>
+        <div class="leg-price" id="legOft" title="오피스텔 평당가 = 거래금액 ÷ 전용면적(평)"></div>
         <div class="leg-item"><div class="leg-sw" style="background:#fff;border:1px solid var(--kirt-brown);border-left:3px solid var(--kirt-brown)"></div>신규분양</div>
         <div class="leg-sep"></div>
         <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-navy);border-radius:50%"></div>클러스터</div>
@@ -736,6 +737,13 @@ var KAKAO_KEY='';   // 카카오 JS 키는 브라우저 노출이 불가피 — 
     function getBunyangStatus(d){
       var today = new Date().toISOString().slice(0,10);
       var s = {txt:'', bg:'', desc:''};
+
+      // 입주예정월이 지났으면 이미 있는 단지다 — '분양' 상태로 보이지 않게 한다
+      var mv=String(d.MVN_PREARNGE_YM||'').replace(/[^0-9]/g,'').slice(0,6);
+      if(mv.length===6 && mv < today.slice(0,7).replace('-','')){
+        s.txt='입주완료'; s.bg='#B3B3B3'; s.desc='입주 '+mv.slice(0,4)+'.'+mv.slice(4);
+        return s;
+      }
 
       if(!d.RCEPT_BGNDE){
         s.txt='분양예정'; s.bg='#A37E51'; return s;
@@ -836,6 +844,125 @@ function getEstSupply(excluUseAr, buildYear){
     else             ratio=0.76;
   }
   return {supply:Math.round(area/ratio*10)/10, supplyPy:Math.round(area/ratio/3.3058*10)/10, ratio:Math.round(ratio*100)};
+}
+
+// ── 평당가 색상 (아파트=공급면적 기준, 오피스텔=전용면적 기준) ──
+// 두 유형은 기준 면적이 달라 한 눈금에 세우지 않는다. 유형별로 5단계, 단지 수가 고르게 나뉘도록(5분위) 끊는다.
+// 램프는 단일 색상 밝음→어두움. UI(네이비·블루·브라운·탄)와 겹치지 않는 색 계열을 쓴다.
+// 아파트 레드(비쌀수록 진한 빨강), 오피스텔 틸(청록). OKLCH L 0.76→0.32 약 0.11 간격.
+// (검증: 명도 단조, 인접 단계 차이, 밝은 끝 대비 2:1 이상 / 라벨 글자 대비 4.8:1 이상)
+var PY_RAMP={
+  '아파트':  ['#ea9794','#db6465','#c1313c','#941424','#620914'],
+  '오피스텔':['#68c4b8','#1aa598','#008076','#005d55','#003c37']
+};
+var PY_INK={'아파트':['#000','#000','#fff','#fff','#fff'],'오피스텔':['#000','#000','#fff','#fff','#fff']};
+var PY_BREAKS={'아파트':[],'오피스텔':[]};
+var PY_M2=3.3058;
+
+// 저장된 건축물대장이 있으면 네트워크 호출 없이 붙인다 (클릭했거나 예전에 받아둔 단지)
+function ledgerFromCache(c){
+  if(!c||c.type!=='아파트')return;
+  if(c._ledger&&typeof c._ledger==='object')return;
+  if(!c.ledgerKey||typeof LEDGER_CACHE==='undefined')return;
+  var ck=LEDGER_CACHE+[c.sigunguCd,c.bjdongCd,c.bun,c.ji].join('-');
+  var o=ledgerMem[ck];
+  if(!o){
+    try{
+      var raw=localStorage.getItem(ck);
+      if(raw){var j=JSON.parse(raw);if(j&&j.t&&(Date.now()-j.t)<LEDGER_TTL){o=j;ledgerMem[ck]=j;}}
+    }catch(e){}
+  }
+  if(o&&o.table&&o.table.length)c._ledger=o;
+}
+
+// 단지 평당가(만원/평). 아파트는 거래마다 공급면적(대장 실측 → 없으면 추정)으로 나눈 뒤 평균
+function pyPrice(c,rows){
+  var sum=0,n=0,est=false;
+  rows.forEach(function(d){
+    var amt=parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;
+    var ar=parseFloat(d.excluUseAr||'0');
+    if(!(amt>0)||!(ar>0))return;
+    var py;
+    if(c.type==='오피스텔'){py=ar/PY_M2;}
+    else{
+      var sp=supplyOf(c,d.excluUseAr);
+      if(!sp||!(sp.supply>0))return;
+      if(sp.src!=='ledger')est=true;
+      py=sp.supply/PY_M2;
+    }
+    sum+=amt/py;n++;
+  });
+  return n?{v:Math.round(sum/n),est:est,n:n}:null;
+}
+
+// 5분위 경계 (100만원 단위로 반올림, 중복 제거)
+function pyBreaks(vals){
+  var a=vals.filter(function(v){return v>0;}).sort(function(x,y){return x-y;});
+  if(a.length<2)return [];
+  var out=[];
+  for(var i=1;i<5;i++){
+    var q=a[Math.min(a.length-1,Math.floor(a.length*i/5))];
+    var r=Math.round(q/100)*100;
+    if(r>a[0]&&r<=a[a.length-1]&&out.indexOf(r)===-1)out.push(r);
+  }
+  return out;
+}
+function pyClass(v,br){
+  var k=0;br.forEach(function(b){if(v>=b)k++;});
+  if(br.length>=4)return k;
+  return br.length?Math.round(k*4/br.length):2;      // 구간이 적으면 램프 전체에 펼친다
+}
+function pyFmt(v){
+  if(!v)return '-';
+  return v>=10000?(v/10000).toFixed(2)+'억/평':Math.round(v).toLocaleString('ko-KR')+'만/평';
+}
+function pyNum(v){return Math.round(v).toLocaleString('ko-KR');}
+
+function renderPriceLegend(){
+  [['아파트','legApt','아파트 평당가','공급·만원'],['오피스텔','legOft','오피스텔 평당가','전용·만원']].forEach(function(t){
+    var el=document.getElementById(t[1]);if(!el)return;
+    var br=PY_BREAKS[t[0]],ramp=PY_RAMP[t[0]];
+    var n=br.length+1,html='<span class="lp-title">'+t[2]+'<small>('+t[3]+')</small></span><div class="lp-steps">';
+    for(var i=0;i<n;i++){
+      var col=ramp[br.length>=4?i:(br.length?Math.round(i*4/br.length):2)];
+      var lbl=(i===0)?(br.length?'~'+pyNum(br[0]):'전체'):pyNum(br[i-1])+'~';
+      html+='<div class="lp-step"><div class="lp-sw" style="background:'+col+'"></div><span class="lp-lbl">'+lbl+'</span></div>';
+    }
+    el.innerHTML=html+'</div>';
+    el.style.display=PY_HAS[t[0]]?'flex':'none';
+  });
+}
+var PY_HAS={'아파트':false,'오피스텔':false};
+
+// 라벨 하나를 현재 눈금으로 칠한다
+function paintPriceLabel(ol){
+  var c=allComplexes[ol.__key]; if(!c||!ol.__el)return;
+  var ramp=PY_RAMP[c.type]||PY_RAMP['아파트'],inks=PY_INK[c.type]||PY_INK['아파트'];
+  var idx=ol.__py?pyClass(ol.__py.v,PY_BREAKS[c.type]||[]):2;
+  var color=ramp[idx],ink=inks[idx];
+  var box=ol.__el.querySelector('.cl-box');
+  var body=ol.__el.querySelector('.cl-body');
+  var tail=ol.__el.querySelector('.cl-tail');
+  var av=ol.__el.querySelector('.cl-avg');
+  if(!av&&body){av=document.createElement('span');av.className='cl-avg';body.appendChild(av);}
+  if(box)box.style.background=color;
+  if(body)body.style.color=ink;
+  if(tail)tail.style.borderTop='7px solid '+color;
+  if(av){
+    av.textContent=ol.__py?pyFmt(ol.__py.v):'-';
+    var basis=c.type==='오피스텔'?'전용면적 기준':'공급면적 기준';
+    av.title='평당가 '+pyFmt(ol.__py&&ol.__py.v)+' — '+basis+(ol.__avg?' / 평균 거래가 '+(ol.__avg>=10000?(ol.__avg/10000).toFixed(1)+'억':ol.__avg.toLocaleString()+'만'):'');
+  }
+}
+// 대장을 새로 받은 단지만 실측으로 다시 계산 (눈금은 그대로 → 다른 단지 색이 바뀌지 않음)
+function refreshPriceFor(c){
+  if(typeof overlays==='undefined')return;
+  overlays.forEach(function(ol){
+    if(allComplexes[ol.__key]!==c)return;
+    var rows=afActive()?applyAF(c.trades):c.trades;
+    ol.__py=pyPrice(c,rows);
+    paintPriceLabel(ol);
+  });
 }
 
 // ── 기동 ──
@@ -1141,30 +1268,25 @@ function applyAreaToMap(){
     var amts=rows.map(function(d){return parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;})
                  .filter(function(v){return v>0;});
     ol.__avg=amts.length?Math.round(amts.reduce(function(a,b){return a+b;},0)/amts.length):0;
+    ledgerFromCache(c);
+    ol.__py=pyPrice(c,rows);
     ol.__n=rows.length;
     // 면적 필터가 걸린 상태에서 해당 면적 거래가 아예 없으면 숨긴다
     ol.__hidden = on && rows.length===0;
     if(!ol.__hidden&&ol.__avg>0)vals.push(ol.__avg);
   });
-  // 남은 단지 기준으로 색 눈금을 다시 잡는다
-  var pMin=vals.length?Math.min.apply(null,vals):0;
-  var pMax=vals.length?Math.max.apply(null,vals):1;
+  // 남은 단지 기준으로 유형별 평당가 눈금(5분위)을 다시 잡는다
+  var pv={'아파트':[],'오피스텔':[]};
   overlays.forEach(function(ol){
-    var c=allComplexes[ol.__key]; if(!c||!ol.__el)return;
-    var color;
-    if(c.type==='오피스텔')color='#A37E51';
-    else if(!ol.__avg||pMax===pMin)color=SEQ[2];
-    else{var r=(ol.__avg-pMin)/(pMax-pMin);color=SEQ[r<.25?0:r<.5?1:r<.75?2:3];}
-    var box=ol.__el.querySelector('.cl-box');
-    var body=ol.__el.querySelector('.cl-body');
-    var tail=ol.__el.querySelector('.cl-tail');
-    var av=ol.__el.querySelector('.cl-avg');
-    if(box)box.style.background=color;
-    if(body)body.style.color=(color===SEQ[0]||color===SEQ[1])?'#000':'#fff';
-    if(tail)tail.style.borderTop='7px solid '+color;
-    if(av)av.textContent=ol.__avg>=10000?(ol.__avg/10000).toFixed(1)+'억'
-                       :ol.__avg?ol.__avg.toLocaleString()+'만':'-';
+    var c=allComplexes[ol.__key]; if(!c||ol.__hidden||!ol.__py)return;
+    (pv[c.type]||pv['아파트']).push(ol.__py.v);
   });
+  PY_BREAKS['아파트']=pyBreaks(pv['아파트']);
+  PY_BREAKS['오피스텔']=pyBreaks(pv['오피스텔']);
+  PY_HAS['아파트']=pv['아파트'].length>0;
+  PY_HAS['오피스텔']=pv['오피스텔'].length>0;
+  overlays.forEach(paintPriceLabel);
+  renderPriceLegend();
   var shown=overlays.filter(function(ol){return !ol.__hidden;}).length;
   if(on)console.log('[면적 필터] '+afLabel()+' → '+shown+'/'+overlays.length+'개 단지');
   updateOverlay();
@@ -2117,6 +2239,7 @@ function ensureLedger(c){
   loadLedger(c).then(function(o){
     c._ledger=(o&&o.table&&o.table.length)?o:'empty';
     if(curComplex===c)refreshComplexViews();
+    refreshPriceFor(c);
   }).catch(function(e){
     c._ledger='error';c._ledgerMsg=e.message;
     console.warn('[대장 조회 실패] '+c.name+': '+e.message);
@@ -2711,7 +2834,9 @@ async function runAnalysis(){
     clusterer=new kakao.maps.MarkerClusterer({
       map:map,markers:allMarkers,
       gridSize:80,averageCenter:true,
-      minLevel:4,minClusterSize:2,
+      // 단지 라벨은 레벨 5 이하에서 보인다. 그때 원형 클러스터까지 겹치면 라벨을 가리므로
+      // 클러스터는 라벨이 사라지는 레벨 6부터만 묶는다.
+      minLevel:6,minClusterSize:2,
       disableClickZoom:false,
       styles:[
         // 클러스터도 순차 램프: 작을수록 밝고, 커질수록 어둡게 (그림자 없음)
@@ -2871,205 +2996,199 @@ async function exportExcel(){
   if(selectedKeys.size===0){alert('선택된 단지가 없음. 지도 라벨 왼쪽의 네모를 눌러 선택할 것.');return;}
   if(typeof XLSX === 'undefined'){alert('Excel 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
 
-  // 선택 단지의 건축물대장을 먼저 받아둔다 (캐시 적중분은 호출 없음)
+  // 선택 단지의 건축물대장을 먼저 받아둔다 (캐시 적중분은 호출 없음) → 공급면적을 실측으로
   var exBtn=document.getElementById('excelBtn');exBtn.disabled=true;
   try{await prefetchLedgers([...selectedKeys]);}catch(e){console.warn('[대장 선조회 중단] '+e.message);}
   exBtn.disabled=false;
 
-  var wb = XLSX.utils.book_new();
-  var now = new Date();
-  var dateStr = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+  var wb=XLSX.utils.book_new();
+  var now=new Date();
+  var ymd=now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+  var ymdDot=ymd.slice(0,4)+'.'+ymd.slice(4,6)+'.'+ymd.slice(6);
+  var rText=selR>=1000?(selR/1000)+'km':selR+'m';
+  var period=getYm('start').slice(0,4)+'.'+getYm('start').slice(4)+' ~ '+getYm('end').slice(0,4)+'.'+getYm('end').slice(4);
+  var PYM=3.3058;
+  var K=function(man){return (parseInt(String(man||'0').replace(/[^0-9]/g,''))||0)*10;};   // 만원 → 천원
+  var A=function(r,c){return XLSX.utils.encode_cell({r:r,c:c});};
+  var COL=function(c){return XLSX.utils.encode_col(c);};
+  var avg=function(a){return a.length?a.reduce(function(x,y){return x+y;},0)/a.length:null;};
+  var dt=function(d){return d.dealYear+'.'+String(d.dealMonth||'').padStart(2,'0')+'.'+String(d.dealDay||'').padStart(2,'0');};
+  var dkey=function(d){return d.dealYear+String(d.dealMonth||'').padStart(2,'0')+String(d.dealDay||'').padStart(2,'0');};
+  var distTxt=function(c){return c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';};
+  var NUM='#,##0', AREA='0.00', PY='0.0';
 
-  // ══════════════════════════════
-  // Sheet 1: 단지별 요약
-  // ══════════════════════════════
-  var summaryData = [];
-  summaryData.push(['부동산 단지 비교 분석 요약']);
-  summaryData.push(['분석일자: '+now.getFullYear()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+String(now.getDate()).padStart(2,'0')+'  |  선택 단지: '+selectedKeys.size+'개  |  반경: '+(selR>=1000?(selR/1000)+'km':selR+'m')]);
-  summaryData.push([]);
+  // 행 배열 → 시트. 셀은 값 또는 {v,f,z}. 수식 셀은 계산값(v)도 함께 넣어 미리보기에서도 보이게 한다.
+  function toSheet(rows, colFmt, widths, merges){
+    var plain=rows.map(function(r){return r.map(function(c){return (c&&typeof c==='object')?(c.v==null?null:c.v):c;});});
+    var ws=XLSX.utils.aoa_to_sheet(plain);
+    rows.forEach(function(r,ri){r.forEach(function(c,ci){
+      var a=A(ri,ci);
+      if(c&&typeof c==='object'){
+        if(!ws[a])ws[a]={t:'n',v:0};
+        if(c.f)ws[a].f=c.f;
+        if(c.z)ws[a].z=c.z;else if(colFmt[ci]&&ws[a].t==='n')ws[a].z=colFmt[ci];
+      }else if(typeof c==='number'&&colFmt[ci]&&ws[a])ws[a].z=colFmt[ci];
+    });});
+    ws['!cols']=widths.map(function(w){return {wch:w};});
+    if(merges&&merges.length)ws['!merges']=merges;
+    return ws;
+  }
 
-  // 요약 헤더
-  summaryData.push([
-    '단지명','유형','법정동','건축년도','사업지거리',
-    '매매건수','평균매매가(만)','최저매매가(만)','최고매매가(만)',
-    '전세건수','평균전세가(만)','전세가율(%)',
-    '월세건수','평균월세(만)',
-    '전용면적종류','대표전용면적(㎡)','공급면적(㎡)','공급면적(평)','전용률(%)','면적출처',
-    '단지고유번호','도로명주소','좌표출처',
-    '지번','시군구코드','법정동코드','본번','부번','지번출처','필지수'
-  ]);
-
-  selectedKeys.forEach(function(key){
-    var c = allComplexes[key]; if(!c) return;
-    var tradeAmts = c.trades.map(d=>parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var jAmts = c.rents.filter(d=>d._rt==='전세').map(d=>parseInt((d.deposit||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var wAmts = c.rents.filter(d=>d._rt==='월세').map(d=>parseInt((d.monthlyRent||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var avg = tradeAmts.length?Math.round(tradeAmts.reduce((a,b)=>a+b,0)/tradeAmts.length):0;
-    var minV = tradeAmts.length?Math.min(...tradeAmts):0;
-    var maxV = tradeAmts.length?Math.max(...tradeAmts):0;
-    var jAvg = jAmts.length?Math.round(jAmts.reduce((a,b)=>a+b,0)/jAmts.length):0;
-    var wAvg = wAmts.length?Math.round(wAmts.reduce((a,b)=>a+b,0)/wAmts.length):0;
-    var ratio = avg>0&&jAvg>0?Math.round(jAvg/avg*100):0;
-    var dist = c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-    var yr = parseInt(c.buildYear||'0');
-    var ratioUsed = yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
-    var areas = [...new Set(c.trades.map(d=>parseFloat(d.excluUseAr||'0')).filter(v=>v>0).map(v=>v.toFixed(1)))].sort((a,b)=>parseFloat(a)-parseFloat(b));
-    // 대표 전용면적 = 거래가 가장 많은 면적
-    var ac={};c.trades.forEach(function(d){var a=parseFloat(d.excluUseAr||'0');if(a>0){var k=a.toFixed(1);ac[k]=(ac[k]||0)+1;}});
-    var repArea=Object.keys(ac).sort(function(x,y){return ac[y]-ac[x];})[0]||'';
-    var repSup=repArea?supplyOf(c,parseFloat(repArea)):null;
-
-    summaryData.push([
-      c.name, c.type, c.dong, c.buildYear||'-', dist,
-      tradeAmts.length, avg||'-', minV||'-', maxV||'-',
-      jAmts.length, jAvg||'-', ratio||'-',
-      wAmts.length, wAvg||'-',
-      areas.slice(0,5).join('㎡ / ')+(areas.length>5?' 외'+(areas.length-5)+'종':'')+'㎡',
-      repArea||'-', repSup?repSup.supply:'-', repSup?repSup.supplyPy:'-',
-      repSup&&repSup.ratio?repSup.ratio:ratioUsed, supplySrcLabel(repSup),
-      c.aptSeq||'-', roadAddr(c)||'-',
-      c._geoSrc==='road'?'도로명':c._geoSrc==='lot'?'지번':c._geoSrc==='name'?'단지명':'-',
-      c.jibunTxt||'-', c.sigunguCd||'-', c.bjdongCd||'-', c.bun||'-', c.ji||'-',
-      c.lotSrc==='code'?'본번·부번':c.lotSrc==='seq'?'고유번호':c.lotSrc==='jibun'?'지번파싱':c.lotSrc==='coord'?'좌표보완':'미확보',
-      c.lotVariants||0
-    ]);
-  });
-
-  var wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-
-  // 열 너비 설정
-  wsSummary['!cols'] = [
-    {wch:20},{wch:8},{wch:10},{wch:8},{wch:8},
-    {wch:8},{wch:12},{wch:12},{wch:12},
-    {wch:8},{wch:12},{wch:10},
-    {wch:8},{wch:10},
-    {wch:30},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},
-    {wch:14},{wch:28},{wch:10},
-    {wch:10},{wch:10},{wch:10},{wch:8},{wch:8},{wch:10},{wch:8}
-  ];
-
-  // 행 높이
-  wsSummary['!rows'] = [{hpt:28},{hpt:20},{hpt:8},{hpt:22}];
-
-  XLSX.utils.book_append_sheet(wb, wsSummary, '단지별 요약');
-
-  // ══════════════════════════════
-  // Sheet 2: 매매 거래내역
-  // ══════════════════════════════
-  var tradeData = [];
-  tradeData.push(['매매 거래 내역 상세']);
-  tradeData.push(['분석일자: '+dateStr+'  |  선택 단지: '+selectedKeys.size+'개']);
-  tradeData.push([]);
-  tradeData.push([
-    '단지명','유형','법정동','건축년도','사업지거리',
-    '거래일','면적타입',
-    '전용면적(㎡)','전용면적(평)',
-    '공급면적(㎡)','공급면적(평)','면적출처',
-    '층','거래금액(만원)','전용평당가(만원)','공급평당가(만원)'
-  ]);
-
-  var prevKey = null;
-  selectedKeys.forEach(function(key){
-    var c = allComplexes[key]; if(!c) return;
-    var yr = parseInt(c.buildYear||'0');
-    var ratioUsed = yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
-    var dist = c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-
-    var sorted = [...c.trades].sort((a,b)=>
-      (b.dealYear+b.dealMonth.padStart(2,'0')+b.dealDay.padStart(2,'0')).localeCompare(
-       a.dealYear+a.dealMonth.padStart(2,'0')+a.dealDay.padStart(2,'0')));
-
-    // 단지 구분선
-    if(prevKey !== null) tradeData.push([]);
-    prevKey = key;
-
-    sorted.forEach(function(d){
-      var amt = parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;
-      var area = parseFloat(d.excluUseAr||'0');
-      var areaPy = area>0?Math.round(area/3.3058*10)/10:'';
-      var sup = supplyOf(c,area);
-      var py = area>0?Math.round(amt/(area/3.3058)):0;
-      var supPy = sup&&sup.supply>0?Math.round(amt/(sup.supply/3.3058)):'';
-      var tObj = getAreaTypeObj(getAreaType(area));
-      var dateStr2 = d.dealYear+'.'+( d.dealMonth||'').padStart(2,'0')+'.'+(d.dealDay||'').padStart(2,'0');
-      tradeData.push([
-        c.name, d._type, c.dong, c.buildYear||'', dist,
-        dateStr2, tObj?tObj.label:'',
-        area>0?area:'', areaPy,
-        sup?sup.supply:'', sup?sup.supplyPy:'', supplySrcLabel(sup),
-        d.floor?parseInt(d.floor):'',
-        amt||'', py||'', supPy||''
-      ]);
+  // 평형 묶음 — 전용면적 정수부(84.98·84.99 → 84㎡)로 묶는다
+  function groupByType(c, rows){
+    var g={};
+    rows.forEach(function(d){
+      var ar=parseFloat(d.excluUseAr||'0'); if(!(ar>0))return;
+      var k=Math.floor(ar); (g[k]=g[k]||[]).push(d);
     });
-  });
-
-  var wsTrade = XLSX.utils.aoa_to_sheet(tradeData);
-  wsTrade['!cols'] = [
-    {wch:20},{wch:8},{wch:10},{wch:8},{wch:8},
-    {wch:12},{wch:8},
-    {wch:10},{wch:8},
-    {wch:12},{wch:10},
-    {wch:5},{wch:12},{wch:12}
-  ];
-  wsTrade['!rows'] = [{hpt:28},{hpt:20},{hpt:8},{hpt:22}];
-  XLSX.utils.book_append_sheet(wb, wsTrade, '매매 거래내역');
-
-  // ══════════════════════════════
-  // Sheet 3: 전월세 거래내역
-  // ══════════════════════════════
-  var rentData = [];
-  rentData.push(['전월세 거래 내역 상세']);
-  rentData.push(['분석일자: '+dateStr+'  |  선택 단지: '+selectedKeys.size+'개']);
-  rentData.push([]);
-  rentData.push([
-    '단지명','유형','구분','법정동','건축년도','사업지거리',
-    '거래일','면적타입',
-    '전용면적(㎡)','전용면적(평)',
-    '층','보증금(만원)','월세(만원)'
-  ]);
-
-  prevKey = null;
-  selectedKeys.forEach(function(key){
-    var c = allComplexes[key]; if(!c) return;
-    var dist = c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-
-    var sorted = [...c.rents].sort((a,b)=>
-      (b.dealYear+b.dealMonth.padStart(2,'0')+b.dealDay.padStart(2,'0')).localeCompare(
-       a.dealYear+a.dealMonth.padStart(2,'0')+a.dealDay.padStart(2,'0')));
-
-    if(prevKey !== null) rentData.push([]);
-    prevKey = key;
-
-    sorted.forEach(function(d){
-      var dep = parseInt((d.deposit||'0').replace(/[^0-9]/g,''))||0;
-      var mon = parseInt((d.monthlyRent||'0').replace(/[^0-9]/g,''))||0;
-      var area = parseFloat(d.excluUseAr||'0');
-      var areaPy = area>0?Math.round(area/3.3058*10)/10:'';
-      var tObj = getAreaTypeObj(getAreaType(area));
-      var dateStr2 = d.dealYear+'.'+(d.dealMonth||'').padStart(2,'0')+'.'+(d.dealDay||'').padStart(2,'0');
-      rentData.push([
-        c.name, d._type, d._rt, c.dong, c.buildYear||'', dist,
-        dateStr2, tObj?tObj.label:'',
-        area>0?area:'', areaPy,
-        d.floor?parseInt(d.floor):'',
-        dep||'', mon||''
-      ]);
+    return Object.keys(g).map(Number).sort(function(a,b){return a-b;}).map(function(k){
+      var list=g[k].slice().sort(function(a,b){return dkey(b).localeCompare(dkey(a));});
+      var ars=list.map(function(d){return parseFloat(d.excluUseAr);}).sort(function(a,b){return a-b;});
+      var rep=ars[Math.floor(ars.length/2)];
+      var sup=c.type==='오피스텔'?null:supplyOf(c,rep);
+      var label=k+'㎡'+(c.type==='오피스텔'?' (전용 '+(rep/PYM).toFixed(1)+'평)':(sup&&sup.supplyPy?' ('+Math.round(sup.supplyPy)+'평형)':''));
+      return {k:k,label:label,list:list,rep:rep,sup:sup};
     });
+  }
+  // 한 거래의 기준 면적(평): 아파트=공급, 오피스텔=전용
+  function basisOf(c,d){
+    var ar=parseFloat(d.excluUseAr||'0');
+    if(c.type==='오피스텔')return {sup:null,py:ar/PYM,src:'전용'};
+    var s=supplyOf(c,d.excluUseAr);
+    return {sup:s,py:s&&s.supply>0?s.supply/PYM:null,src:supplySrcLabel(s)};
+  }
+
+  var keys=[...selectedKeys].filter(function(k){return allComplexes[k];})
+    .sort(function(a,b){return (allComplexes[a].dist||0)-(allComplexes[b].dist||0);});
+
+  // ════════════════ 매매 상세 (단지 → 평형 → 거래) ════════════════
+  var T=[], tm=[];
+  var TS='매매 상세';
+  T.push(['매매 거래 상세 — 단지·평형별']);
+  T.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
+  T.push(['단위: 천원 · 평당가 = 거래금액 ÷ 기준면적(평) — 아파트는 공급면적, 오피스텔은 전용면적 · 공급면적은 건축물대장 실측(없으면 건축년도별 전용률로 추정)']);
+  T.push([]);
+  T.push(['단지명','유형','평형','거래일','동','층','전용면적(㎡)','공급면적(㎡)','기준면적(평)','거래금액(천원)','평당가(천원/평)','면적 출처']);
+  // 열: A단지 B유형 C평형 D거래일 E동 F층 G전용 H공급 I기준평 J거래금액 K평당가 L출처
+  var tradeRef={};   // 요약 시트가 참조할 소계 위치
+  keys.forEach(function(key){
+    var c=allComplexes[key];
+    var groups=groupByType(c,c.trades);
+    if(!groups.length)return;
+    var hr=T.length;
+    T.push(['■ '+c.name+'  ('+c.type+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.buildYear||'-')+'년 · 사업지 '+distTxt(c)+')']);
+    tm.push({s:{r:hr,c:0},e:{r:hr,c:11}});
+    var allJ=[],allK=[],ranges=[],gRef=[];
+    groups.forEach(function(g){
+      var s=T.length, js=[], ks=[], pys=[];
+      g.list.forEach(function(d){
+        var r=T.length, amt=K(d.dealAmount), b=basisOf(c,d), ar=parseFloat(d.excluUseAr);
+        var py=b.py?Math.round(b.py*10)/10:null;
+        var ppy=(amt&&py)?Math.round(amt/py):null;
+        if(amt)js.push(amt); if(ppy)ks.push(ppy); if(py)pys.push(py);
+        T.push([c.name,c.type,g.label,dt(d),d.aptDong||'',d.floor?parseInt(d.floor):'',
+          ar, b.sup?b.sup.supply:(c.type==='오피스텔'?'':null), py,
+          amt||null, py&&amt?{v:ppy,f:'IF(I'+(r+1)+'>0,ROUND(J'+(r+1)+'/I'+(r+1)+',0),"")',z:NUM}:null, b.src]);
+      });
+      var e=T.length-1, rr=T.length;
+      ranges.push([s,e]); allJ=allJ.concat(js); allK=allK.concat(ks);
+      T.push(['', '', g.label+' 평균', g.list.length+'건','','',
+        {v:avg(g.list.map(function(d){return parseFloat(d.excluUseAr);})),f:'AVERAGE(G'+(s+1)+':G'+(e+1)+')',z:AREA},
+        c.type==='오피스텔'?'':{v:g.sup?g.sup.supply:null,f:'IFERROR(AVERAGE(H'+(s+1)+':H'+(e+1)+'),"")',z:AREA},
+        {v:pys.length?avg(pys):null,f:'IFERROR(AVERAGE(I'+(s+1)+':I'+(e+1)+'),"")',z:PY},
+        {v:js.length?Math.round(avg(js)):null,f:'IFERROR(ROUND(AVERAGE(J'+(s+1)+':J'+(e+1)+'),0),"")',z:NUM},
+        {v:ks.length?Math.round(avg(ks)):null,f:'IFERROR(ROUND(AVERAGE(K'+(s+1)+':K'+(e+1)+'),0),"")',z:NUM},'']);
+      gRef.push({label:g.label,row:rr,s:s,e:e,cnt:g.list.length,js:js,ks:ks,g:g});
+    });
+    var tr=T.length;
+    var rg=function(col){return ranges.map(function(x){return col+(x[0]+1)+':'+col+(x[1]+1);}).join(',');};
+    T.push(['', '', '단지 전체 평균', allJ.length+'건','','','','','',
+      {v:allJ.length?Math.round(avg(allJ)):null,f:'IFERROR(ROUND(AVERAGE('+rg('J')+'),0),"")',z:NUM},
+      {v:allK.length?Math.round(avg(allK)):null,f:'IFERROR(ROUND(AVERAGE('+rg('K')+'),0),"")',z:NUM},'']);
+    T.push([]);
+    tradeRef[key]={groups:gRef,total:tr,cnt:allJ.length,j:allJ,k:allK,ranges:ranges,rg:rg};
   });
+  var wsT=toSheet(T,{6:AREA,7:AREA,8:PY,9:NUM,10:NUM},[24,8,20,11,7,5,11,11,11,14,14,10],[{s:{r:0,c:0},e:{r:0,c:11}},{s:{r:1,c:0},e:{r:1,c:11}},{s:{r:2,c:0},e:{r:2,c:11}}].concat(tm));
 
-  var wsRent = XLSX.utils.aoa_to_sheet(rentData);
-  wsRent['!cols'] = [
-    {wch:20},{wch:8},{wch:6},{wch:10},{wch:8},{wch:8},
-    {wch:12},{wch:8},
-    {wch:10},{wch:8},
-    {wch:5},{wch:12},{wch:10}
-  ];
-  wsRent['!rows'] = [{hpt:28},{hpt:20},{hpt:8},{hpt:22}];
-  XLSX.utils.book_append_sheet(wb, wsRent, '전월세 거래내역');
+  // ════════════════ 단지·평형 요약 (매매 상세의 평균을 그대로 참조) ════════════════
+  var S=[], sm=[];
+  S.push(['단지·평형별 매매 요약']);
+  S.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
+  S.push(['단위: 천원 · 평당가 기준: 아파트 공급면적, 오피스텔 전용면적 · 평균값은 「'+TS+'」 시트의 평균 행을 참조합니다']);
+  S.push([]);
+  S.push(['단지명','유형','평형','거래건수','평균 거래금액(천원)','최저(천원)','최고(천원)','평균 평당가(천원/평)','최근 거래일','사업지 거리']);
+  var Q="'"+TS+"'!";
+  keys.forEach(function(key){
+    var c=allComplexes[key], ref=tradeRef[key];
+    if(!ref){S.push([c.name,c.type,'매매 없음',0,'','','','','',distTxt(c)]);return;}
+    ref.groups.forEach(function(gr,i){
+      var lr=gr.g.list.length?dt(gr.g.list[0]):'';
+      S.push([i===0?c.name:'',i===0?c.type:'',gr.label,gr.cnt,
+        {v:gr.js.length?Math.round(avg(gr.js)):null,f:Q+'J'+(gr.row+1),z:NUM},
+        {v:gr.js.length?Math.min.apply(null,gr.js):null,f:'MIN('+Q+'J'+(gr.s+1)+':J'+(gr.e+1)+')',z:NUM},
+        {v:gr.js.length?Math.max.apply(null,gr.js):null,f:'MAX('+Q+'J'+(gr.s+1)+':J'+(gr.e+1)+')',z:NUM},
+        {v:gr.ks.length?Math.round(avg(gr.ks)):null,f:Q+'K'+(gr.row+1),z:NUM},
+        lr, i===0?distTxt(c):'']);
+    });
+    S.push(['',  '', '단지 전체', ref.cnt,
+      {v:ref.j.length?Math.round(avg(ref.j)):null,f:Q+'J'+(ref.total+1),z:NUM},
+      {v:ref.j.length?Math.min.apply(null,ref.j):null,f:'MIN('+ref.ranges.map(function(x){return Q+'J'+(x[0]+1)+':J'+(x[1]+1);}).join(',')+')',z:NUM},
+      {v:ref.j.length?Math.max.apply(null,ref.j):null,f:'MAX('+ref.ranges.map(function(x){return Q+'J'+(x[0]+1)+':J'+(x[1]+1);}).join(',')+')',z:NUM},
+      {v:ref.k.length?Math.round(avg(ref.k)):null,f:Q+'K'+(ref.total+1),z:NUM},'','']);
+    S.push([]);
+  });
+  var wsS=toSheet(S,{4:NUM,5:NUM,6:NUM,7:NUM},[24,8,20,9,17,13,13,18,12,10],[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}},{s:{r:2,c:0},e:{r:2,c:9}}]);
 
-  // 파일 다운로드
-  XLSX.writeFile(wb, '부동산분석_'+dateStr+'_'+selectedKeys.size+'개단지.xlsx');
-  setStatus('ok','Excel 다운로드 완료 ('+selectedKeys.size+'개 단지, 3개 시트)');
+  // ════════════════ 전월세 상세 (단지 → 평형 → 거래) ════════════════
+  var R=[], rm=[];
+  R.push(['전월세 거래 상세 — 단지·평형별']);
+  R.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
+  R.push(['단위: 천원 · 전세 평균은 전세 거래만, 월세 평균은 월세 거래만으로 계산']);
+  R.push([]);
+  R.push(['단지명','유형','평형','구분','거래일','층','전용면적(㎡)','보증금(천원)','월세(천원)']);
+  keys.forEach(function(key){
+    var c=allComplexes[key];
+    var groups=groupByType(c,c.rents);
+    if(!groups.length)return;
+    var hr=R.length;
+    R.push(['■ '+c.name+'  ('+c.type+' · '+c.dong+' · 사업지 '+distTxt(c)+')']);
+    rm.push({s:{r:hr,c:0},e:{r:hr,c:8}});
+    groups.forEach(function(g){
+      var s=R.length;
+      g.list.forEach(function(d){
+        R.push([c.name,c.type,g.label,d._rt,dt(d),d.floor?parseInt(d.floor):'',parseFloat(d.excluUseAr),K(d.deposit)||null,K(d.monthlyRent)||(d._rt==='월세'?null:'')]);
+      });
+      var e=R.length-1, rg='D'+(s+1)+':D'+(e+1);
+      var js=g.list.filter(function(d){return d._rt==='전세';}), ws=g.list.filter(function(d){return d._rt==='월세';});
+      if(js.length)R.push(['','',g.label+' 전세 평균',js.length+'건','','','',
+        {v:Math.round(avg(js.map(function(d){return K(d.deposit);}))),f:'ROUND(AVERAGEIF('+rg+',"전세",H'+(s+1)+':H'+(e+1)+'),0)',z:NUM},'']);
+      if(ws.length)R.push(['','',g.label+' 월세 평균',ws.length+'건','','','',
+        {v:Math.round(avg(ws.map(function(d){return K(d.deposit);}))),f:'ROUND(AVERAGEIF('+rg+',"월세",H'+(s+1)+':H'+(e+1)+'),0)',z:NUM},
+        {v:Math.round(avg(ws.map(function(d){return K(d.monthlyRent);}))),f:'ROUND(AVERAGEIF('+rg+',"월세",I'+(s+1)+':I'+(e+1)+'),0)',z:NUM}]);
+    });
+    R.push([]);
+  });
+  var wsR=toSheet(R,{6:AREA,7:NUM,8:NUM},[24,8,20,12,11,5,11,14,11],[{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}},{s:{r:2,c:0},e:{r:2,c:8}}].concat(rm));
+
+  // ════════════════ 단지 정보 (식별·위치) ════════════════
+  var I=[];
+  I.push(['단지 정보']);
+  I.push([]);
+  I.push(['단지명','유형','법정동','지번','도로명주소','건축년도','사업지 거리','단지고유번호','시군구코드','법정동코드','본번','부번','좌표 출처','지번 출처']);
+  keys.forEach(function(key){
+    var c=allComplexes[key];
+    I.push([c.name,c.type,c.dong,c.jibunTxt||'',roadAddr(c)||'',c.buildYear||'',distTxt(c),c.aptSeq||'',c.sigunguCd||'',c.bjdongCd||'',c.bun||'',c.ji||'',
+      c._geoSrc==='road'?'도로명':c._geoSrc==='lot'?'지번':c._geoSrc==='name'?'단지명':'',
+      c.lotSrc==='code'?'본번·부번':c.lotSrc==='seq'?'고유번호':c.lotSrc==='jibun'?'지번파싱':c.lotSrc==='coord'?'좌표보완':'']);
+  });
+  var wsI=toSheet(I,{},[24,8,10,10,30,8,10,14,10,10,7,7,9,10],[]);
+
+  XLSX.utils.book_append_sheet(wb, wsS, '단지·평형 요약');
+  XLSX.utils.book_append_sheet(wb, wsT, TS);
+  XLSX.utils.book_append_sheet(wb, wsR, '전월세 상세');
+  XLSX.utils.book_append_sheet(wb, wsI, '단지 정보');
+  XLSX.writeFile(wb, '실거래분석_'+ymd+'_'+keys.length+'개단지.xlsx');
+  setStatus('ok','Excel 다운로드 완료 ('+keys.length+'개 단지, 4개 시트 · 단위 천원)');
 }
 function closeDetail(){document.getElementById('detailPanel').classList.remove('open');relayoutMap();}
 
@@ -3131,6 +3250,7 @@ function bunyangKey(d){
 async function loadBunyang(){
   if(!curLat){
     console.log('사업지 주소가 없어 분양 조회를 건너뜁니다.');
+    setProg(100,'완료');
     return;
   }
   var guNames=Array.from(new Set(
@@ -3168,10 +3288,12 @@ async function loadBunyang(){
     allBunyang=rows;
     console.log('[분양] 수집 '+rows.length+'건');
     await renderBunyangInRadius();
+    setProg(100,'완료');
 
   } catch(e){
     console.warn('분양 조회 실패:', e.message);
     console.error(e);
+    setProg(100,'분양단지 조회 실패');
   }
 }
 
@@ -3378,9 +3500,25 @@ async function renderBunyangInRadius(){
 
 /* 분양 공고와 실거래 단지가 같은 곳인지 — 이름과 거리를 같이 본다.
    이름 표기는 "OO자이(2단지)"처럼 제각각이라 괄호·공백·유형어를 떼고 비교한다. */
+// 브랜드 표기 통일 — 청약홈은 'e편한세상', 실거래는 '이편한세상'처럼 같은 단지를 달리 적는다
+// (거제 고현동 'e편한세상 거제 유로스카이' ↔ 실거래 '이편한세상거제유로스카이'가 안 맞아 분양단지로 따로 찍혔음)
+var BRAND_ALIAS=[
+  [/e-?편한세상/g,'이편한세상'],[/the샵|더#/g,'더샵'],[/i-?park|아이-파크/g,'아이파크'],
+  [/prugio/g,'푸르지오'],[/hillstate/g,'힐스테이트'],[/raemian/g,'래미안'],[/lottecastle/g,'롯데캐슬'],
+  [/xi/g,'자이'],[/sk/g,'에스케이'],[/lh/g,'엘에이치'],[/kcc/g,'케이씨씨'],[/gs/g,'지에스']
+];
 function normHouseName(s){
-  return String(s||'').replace(/\([^)]*\)/g,'').replace(/[\s·・,]/g,'')
-    .replace(/(아파트|오피스텔|주상복합)$/,'').toLowerCase();
+  var t=String(s||'').replace(/\([^)]*\)/g,'').replace(/[\s·・,\-_.]/g,'')
+    .replace(/(아파트|오피스텔|주상복합)$/,'').toLowerCase()
+    .replace(/e-?편한/g,'이편한').replace(/i-?park/g,'ipark');
+  BRAND_ALIAS.forEach(function(r){t=t.replace(r[0],r[1]);});
+  return t;
+}
+// 지번 비교용 ("1175", "1081-18", "산 12-3" → 본번·부번)
+function lotKey(s){
+  var m=String(s||'').replace(/번지/g,'').match(/(산\s*)?(\d+)(?:\s*-\s*(\d+))?/);
+  if(!m)return '';
+  return (m[1]?'산':'')+parseInt(m[2],10)+(m[3]&&parseInt(m[3],10)?'-'+parseInt(m[3],10):'');
 }
 function nearestComplexDist(d){
   var best=Infinity;
@@ -3405,8 +3543,11 @@ function matchBunyangToComplex(d){
     var b=normHouseName(c.name);
     var nameHit=a&&b&&a.length>=3&&b.length>=3&&
       (a===b||(a.length>=4&&b.indexOf(a)!==-1)||(b.length>=4&&a.indexOf(b)!==-1));
-    // 50m 안이면 사실상 같은 자리, 이름이 맞으면 400m까지 본다
-    if(!(dist<=50||(nameHit&&dist<=400)))return;
+    // 공고 지번이 단지 지번과 같으면 같은 단지 (공고 지번은 사업 전 것이라 다를 때가 많아 보조 신호로만 쓴다)
+    var lot=lotKey(lotOfAddr(d.HSSPLY_ADRES));
+    var lotHit=!!lot&&!!c.jibunTxt&&lotKey(c.jibunTxt)===lot;
+    // 50m 안이면 사실상 같은 자리, 이름이 맞으면 400m, 같은 동·같은 지번이면 1km까지 본다
+    if(!(dist<=50||(nameHit&&dist<=400)||(lotHit&&dist<=1000)))return;
     if(!best||dist<best.dist)best={key:k,c:c,dist:dist};
   });
   return best;
