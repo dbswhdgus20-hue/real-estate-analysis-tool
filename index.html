@@ -3561,6 +3561,8 @@ function paintBunyangOnLabel(key){
   if(!body)return;
   var st=getBunyangStatus(c._bunyang);
   var chip=body.querySelector('.cl-bun');
+  // 이미 입주한 단지는 라벨에 분양 줄을 붙이지 않는다 (분양 공고 내용은 상세 패널에서 계속 볼 수 있음)
+  if(st.txt==='입주완료'){if(chip)chip.remove();return;}
   if(!chip){
     chip=document.createElement('span');
     chip.className='cl-bun';
