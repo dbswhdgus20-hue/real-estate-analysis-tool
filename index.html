@@ -2996,205 +2996,199 @@ async function exportExcel(){
   if(selectedKeys.size===0){alert('선택된 단지가 없음. 지도 라벨 왼쪽의 네모를 눌러 선택할 것.');return;}
   if(typeof XLSX === 'undefined'){alert('Excel 라이브러리 로딩 중입니다. 잠시 후 다시 시도해주세요.');return;}
 
-  // 선택 단지의 건축물대장을 먼저 받아둔다 (캐시 적중분은 호출 없음)
+  // 선택 단지의 건축물대장을 먼저 받아둔다 (캐시 적중분은 호출 없음) → 공급면적을 실측으로
   var exBtn=document.getElementById('excelBtn');exBtn.disabled=true;
   try{await prefetchLedgers([...selectedKeys]);}catch(e){console.warn('[대장 선조회 중단] '+e.message);}
   exBtn.disabled=false;
 
-  var wb = XLSX.utils.book_new();
-  var now = new Date();
-  var dateStr = now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+  var wb=XLSX.utils.book_new();
+  var now=new Date();
+  var ymd=now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+  var ymdDot=ymd.slice(0,4)+'.'+ymd.slice(4,6)+'.'+ymd.slice(6);
+  var rText=selR>=1000?(selR/1000)+'km':selR+'m';
+  var period=getYm('start').slice(0,4)+'.'+getYm('start').slice(4)+' ~ '+getYm('end').slice(0,4)+'.'+getYm('end').slice(4);
+  var PYM=3.3058;
+  var K=function(man){return (parseInt(String(man||'0').replace(/[^0-9]/g,''))||0)*10;};   // 만원 → 천원
+  var A=function(r,c){return XLSX.utils.encode_cell({r:r,c:c});};
+  var COL=function(c){return XLSX.utils.encode_col(c);};
+  var avg=function(a){return a.length?a.reduce(function(x,y){return x+y;},0)/a.length:null;};
+  var dt=function(d){return d.dealYear+'.'+String(d.dealMonth||'').padStart(2,'0')+'.'+String(d.dealDay||'').padStart(2,'0');};
+  var dkey=function(d){return d.dealYear+String(d.dealMonth||'').padStart(2,'0')+String(d.dealDay||'').padStart(2,'0');};
+  var distTxt=function(c){return c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';};
+  var NUM='#,##0', AREA='0.00', PY='0.0';
 
-  // ══════════════════════════════
-  // Sheet 1: 단지별 요약
-  // ══════════════════════════════
-  var summaryData = [];
-  summaryData.push(['부동산 단지 비교 분석 요약']);
-  summaryData.push(['분석일자: '+now.getFullYear()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+String(now.getDate()).padStart(2,'0')+'  |  선택 단지: '+selectedKeys.size+'개  |  반경: '+(selR>=1000?(selR/1000)+'km':selR+'m')]);
-  summaryData.push([]);
+  // 행 배열 → 시트. 셀은 값 또는 {v,f,z}. 수식 셀은 계산값(v)도 함께 넣어 미리보기에서도 보이게 한다.
+  function toSheet(rows, colFmt, widths, merges){
+    var plain=rows.map(function(r){return r.map(function(c){return (c&&typeof c==='object')?(c.v==null?null:c.v):c;});});
+    var ws=XLSX.utils.aoa_to_sheet(plain);
+    rows.forEach(function(r,ri){r.forEach(function(c,ci){
+      var a=A(ri,ci);
+      if(c&&typeof c==='object'){
+        if(!ws[a])ws[a]={t:'n',v:0};
+        if(c.f)ws[a].f=c.f;
+        if(c.z)ws[a].z=c.z;else if(colFmt[ci]&&ws[a].t==='n')ws[a].z=colFmt[ci];
+      }else if(typeof c==='number'&&colFmt[ci]&&ws[a])ws[a].z=colFmt[ci];
+    });});
+    ws['!cols']=widths.map(function(w){return {wch:w};});
+    if(merges&&merges.length)ws['!merges']=merges;
+    return ws;
+  }
 
-  // 요약 헤더
-  summaryData.push([
-    '단지명','유형','법정동','건축년도','사업지거리',
-    '매매건수','평균매매가(만)','최저매매가(만)','최고매매가(만)',
-    '전세건수','평균전세가(만)','전세가율(%)',
-    '월세건수','평균월세(만)',
-    '전용면적종류','대표전용면적(㎡)','공급면적(㎡)','공급면적(평)','전용률(%)','면적출처',
-    '단지고유번호','도로명주소','좌표출처',
-    '지번','시군구코드','법정동코드','본번','부번','지번출처','필지수'
-  ]);
-
-  selectedKeys.forEach(function(key){
-    var c = allComplexes[key]; if(!c) return;
-    var tradeAmts = c.trades.map(d=>parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var jAmts = c.rents.filter(d=>d._rt==='전세').map(d=>parseInt((d.deposit||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var wAmts = c.rents.filter(d=>d._rt==='월세').map(d=>parseInt((d.monthlyRent||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var avg = tradeAmts.length?Math.round(tradeAmts.reduce((a,b)=>a+b,0)/tradeAmts.length):0;
-    var minV = tradeAmts.length?Math.min(...tradeAmts):0;
-    var maxV = tradeAmts.length?Math.max(...tradeAmts):0;
-    var jAvg = jAmts.length?Math.round(jAmts.reduce((a,b)=>a+b,0)/jAmts.length):0;
-    var wAvg = wAmts.length?Math.round(wAmts.reduce((a,b)=>a+b,0)/wAmts.length):0;
-    var ratio = avg>0&&jAvg>0?Math.round(jAvg/avg*100):0;
-    var dist = c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-    var yr = parseInt(c.buildYear||'0');
-    var ratioUsed = yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
-    var areas = [...new Set(c.trades.map(d=>parseFloat(d.excluUseAr||'0')).filter(v=>v>0).map(v=>v.toFixed(1)))].sort((a,b)=>parseFloat(a)-parseFloat(b));
-    // 대표 전용면적 = 거래가 가장 많은 면적
-    var ac={};c.trades.forEach(function(d){var a=parseFloat(d.excluUseAr||'0');if(a>0){var k=a.toFixed(1);ac[k]=(ac[k]||0)+1;}});
-    var repArea=Object.keys(ac).sort(function(x,y){return ac[y]-ac[x];})[0]||'';
-    var repSup=repArea?supplyOf(c,parseFloat(repArea)):null;
-
-    summaryData.push([
-      c.name, c.type, c.dong, c.buildYear||'-', dist,
-      tradeAmts.length, avg||'-', minV||'-', maxV||'-',
-      jAmts.length, jAvg||'-', ratio||'-',
-      wAmts.length, wAvg||'-',
-      areas.slice(0,5).join('㎡ / ')+(areas.length>5?' 외'+(areas.length-5)+'종':'')+'㎡',
-      repArea||'-', repSup?repSup.supply:'-', repSup?repSup.supplyPy:'-',
-      repSup&&repSup.ratio?repSup.ratio:ratioUsed, supplySrcLabel(repSup),
-      c.aptSeq||'-', roadAddr(c)||'-',
-      c._geoSrc==='road'?'도로명':c._geoSrc==='lot'?'지번':c._geoSrc==='name'?'단지명':'-',
-      c.jibunTxt||'-', c.sigunguCd||'-', c.bjdongCd||'-', c.bun||'-', c.ji||'-',
-      c.lotSrc==='code'?'본번·부번':c.lotSrc==='seq'?'고유번호':c.lotSrc==='jibun'?'지번파싱':c.lotSrc==='coord'?'좌표보완':'미확보',
-      c.lotVariants||0
-    ]);
-  });
-
-  var wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-
-  // 열 너비 설정
-  wsSummary['!cols'] = [
-    {wch:20},{wch:8},{wch:10},{wch:8},{wch:8},
-    {wch:8},{wch:12},{wch:12},{wch:12},
-    {wch:8},{wch:12},{wch:10},
-    {wch:8},{wch:10},
-    {wch:30},{wch:10},{wch:12},{wch:12},{wch:10},{wch:10},
-    {wch:14},{wch:28},{wch:10},
-    {wch:10},{wch:10},{wch:10},{wch:8},{wch:8},{wch:10},{wch:8}
-  ];
-
-  // 행 높이
-  wsSummary['!rows'] = [{hpt:28},{hpt:20},{hpt:8},{hpt:22}];
-
-  XLSX.utils.book_append_sheet(wb, wsSummary, '단지별 요약');
-
-  // ══════════════════════════════
-  // Sheet 2: 매매 거래내역
-  // ══════════════════════════════
-  var tradeData = [];
-  tradeData.push(['매매 거래 내역 상세']);
-  tradeData.push(['분석일자: '+dateStr+'  |  선택 단지: '+selectedKeys.size+'개']);
-  tradeData.push([]);
-  tradeData.push([
-    '단지명','유형','법정동','건축년도','사업지거리',
-    '거래일','면적타입',
-    '전용면적(㎡)','전용면적(평)',
-    '공급면적(㎡)','공급면적(평)','면적출처',
-    '층','거래금액(만원)','전용평당가(만원)','공급평당가(만원)'
-  ]);
-
-  var prevKey = null;
-  selectedKeys.forEach(function(key){
-    var c = allComplexes[key]; if(!c) return;
-    var yr = parseInt(c.buildYear||'0');
-    var ratioUsed = yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
-    var dist = c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-
-    var sorted = [...c.trades].sort((a,b)=>
-      (b.dealYear+b.dealMonth.padStart(2,'0')+b.dealDay.padStart(2,'0')).localeCompare(
-       a.dealYear+a.dealMonth.padStart(2,'0')+a.dealDay.padStart(2,'0')));
-
-    // 단지 구분선
-    if(prevKey !== null) tradeData.push([]);
-    prevKey = key;
-
-    sorted.forEach(function(d){
-      var amt = parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;
-      var area = parseFloat(d.excluUseAr||'0');
-      var areaPy = area>0?Math.round(area/3.3058*10)/10:'';
-      var sup = supplyOf(c,area);
-      var py = area>0?Math.round(amt/(area/3.3058)):0;
-      var supPy = sup&&sup.supply>0?Math.round(amt/(sup.supply/3.3058)):'';
-      var tObj = getAreaTypeObj(getAreaType(area));
-      var dateStr2 = d.dealYear+'.'+( d.dealMonth||'').padStart(2,'0')+'.'+(d.dealDay||'').padStart(2,'0');
-      tradeData.push([
-        c.name, d._type, c.dong, c.buildYear||'', dist,
-        dateStr2, tObj?tObj.label:'',
-        area>0?area:'', areaPy,
-        sup?sup.supply:'', sup?sup.supplyPy:'', supplySrcLabel(sup),
-        d.floor?parseInt(d.floor):'',
-        amt||'', py||'', supPy||''
-      ]);
+  // 평형 묶음 — 전용면적 정수부(84.98·84.99 → 84㎡)로 묶는다
+  function groupByType(c, rows){
+    var g={};
+    rows.forEach(function(d){
+      var ar=parseFloat(d.excluUseAr||'0'); if(!(ar>0))return;
+      var k=Math.floor(ar); (g[k]=g[k]||[]).push(d);
     });
-  });
-
-  var wsTrade = XLSX.utils.aoa_to_sheet(tradeData);
-  wsTrade['!cols'] = [
-    {wch:20},{wch:8},{wch:10},{wch:8},{wch:8},
-    {wch:12},{wch:8},
-    {wch:10},{wch:8},
-    {wch:12},{wch:10},
-    {wch:5},{wch:12},{wch:12}
-  ];
-  wsTrade['!rows'] = [{hpt:28},{hpt:20},{hpt:8},{hpt:22}];
-  XLSX.utils.book_append_sheet(wb, wsTrade, '매매 거래내역');
-
-  // ══════════════════════════════
-  // Sheet 3: 전월세 거래내역
-  // ══════════════════════════════
-  var rentData = [];
-  rentData.push(['전월세 거래 내역 상세']);
-  rentData.push(['분석일자: '+dateStr+'  |  선택 단지: '+selectedKeys.size+'개']);
-  rentData.push([]);
-  rentData.push([
-    '단지명','유형','구분','법정동','건축년도','사업지거리',
-    '거래일','면적타입',
-    '전용면적(㎡)','전용면적(평)',
-    '층','보증금(만원)','월세(만원)'
-  ]);
-
-  prevKey = null;
-  selectedKeys.forEach(function(key){
-    var c = allComplexes[key]; if(!c) return;
-    var dist = c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-
-    var sorted = [...c.rents].sort((a,b)=>
-      (b.dealYear+b.dealMonth.padStart(2,'0')+b.dealDay.padStart(2,'0')).localeCompare(
-       a.dealYear+a.dealMonth.padStart(2,'0')+a.dealDay.padStart(2,'0')));
-
-    if(prevKey !== null) rentData.push([]);
-    prevKey = key;
-
-    sorted.forEach(function(d){
-      var dep = parseInt((d.deposit||'0').replace(/[^0-9]/g,''))||0;
-      var mon = parseInt((d.monthlyRent||'0').replace(/[^0-9]/g,''))||0;
-      var area = parseFloat(d.excluUseAr||'0');
-      var areaPy = area>0?Math.round(area/3.3058*10)/10:'';
-      var tObj = getAreaTypeObj(getAreaType(area));
-      var dateStr2 = d.dealYear+'.'+(d.dealMonth||'').padStart(2,'0')+'.'+(d.dealDay||'').padStart(2,'0');
-      rentData.push([
-        c.name, d._type, d._rt, c.dong, c.buildYear||'', dist,
-        dateStr2, tObj?tObj.label:'',
-        area>0?area:'', areaPy,
-        d.floor?parseInt(d.floor):'',
-        dep||'', mon||''
-      ]);
+    return Object.keys(g).map(Number).sort(function(a,b){return a-b;}).map(function(k){
+      var list=g[k].slice().sort(function(a,b){return dkey(b).localeCompare(dkey(a));});
+      var ars=list.map(function(d){return parseFloat(d.excluUseAr);}).sort(function(a,b){return a-b;});
+      var rep=ars[Math.floor(ars.length/2)];
+      var sup=c.type==='오피스텔'?null:supplyOf(c,rep);
+      var label=k+'㎡'+(c.type==='오피스텔'?' (전용 '+(rep/PYM).toFixed(1)+'평)':(sup&&sup.supplyPy?' ('+Math.round(sup.supplyPy)+'평형)':''));
+      return {k:k,label:label,list:list,rep:rep,sup:sup};
     });
+  }
+  // 한 거래의 기준 면적(평): 아파트=공급, 오피스텔=전용
+  function basisOf(c,d){
+    var ar=parseFloat(d.excluUseAr||'0');
+    if(c.type==='오피스텔')return {sup:null,py:ar/PYM,src:'전용'};
+    var s=supplyOf(c,d.excluUseAr);
+    return {sup:s,py:s&&s.supply>0?s.supply/PYM:null,src:supplySrcLabel(s)};
+  }
+
+  var keys=[...selectedKeys].filter(function(k){return allComplexes[k];})
+    .sort(function(a,b){return (allComplexes[a].dist||0)-(allComplexes[b].dist||0);});
+
+  // ════════════════ 매매 상세 (단지 → 평형 → 거래) ════════════════
+  var T=[], tm=[];
+  var TS='매매 상세';
+  T.push(['매매 거래 상세 — 단지·평형별']);
+  T.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
+  T.push(['단위: 천원 · 평당가 = 거래금액 ÷ 기준면적(평) — 아파트는 공급면적, 오피스텔은 전용면적 · 공급면적은 건축물대장 실측(없으면 건축년도별 전용률로 추정)']);
+  T.push([]);
+  T.push(['단지명','유형','평형','거래일','동','층','전용면적(㎡)','공급면적(㎡)','기준면적(평)','거래금액(천원)','평당가(천원/평)','면적 출처']);
+  // 열: A단지 B유형 C평형 D거래일 E동 F층 G전용 H공급 I기준평 J거래금액 K평당가 L출처
+  var tradeRef={};   // 요약 시트가 참조할 소계 위치
+  keys.forEach(function(key){
+    var c=allComplexes[key];
+    var groups=groupByType(c,c.trades);
+    if(!groups.length)return;
+    var hr=T.length;
+    T.push(['■ '+c.name+'  ('+c.type+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.buildYear||'-')+'년 · 사업지 '+distTxt(c)+')']);
+    tm.push({s:{r:hr,c:0},e:{r:hr,c:11}});
+    var allJ=[],allK=[],ranges=[],gRef=[];
+    groups.forEach(function(g){
+      var s=T.length, js=[], ks=[], pys=[];
+      g.list.forEach(function(d){
+        var r=T.length, amt=K(d.dealAmount), b=basisOf(c,d), ar=parseFloat(d.excluUseAr);
+        var py=b.py?Math.round(b.py*10)/10:null;
+        var ppy=(amt&&py)?Math.round(amt/py):null;
+        if(amt)js.push(amt); if(ppy)ks.push(ppy); if(py)pys.push(py);
+        T.push([c.name,c.type,g.label,dt(d),d.aptDong||'',d.floor?parseInt(d.floor):'',
+          ar, b.sup?b.sup.supply:(c.type==='오피스텔'?'':null), py,
+          amt||null, py&&amt?{v:ppy,f:'IF(I'+(r+1)+'>0,ROUND(J'+(r+1)+'/I'+(r+1)+',0),"")',z:NUM}:null, b.src]);
+      });
+      var e=T.length-1, rr=T.length;
+      ranges.push([s,e]); allJ=allJ.concat(js); allK=allK.concat(ks);
+      T.push(['', '', g.label+' 평균', g.list.length+'건','','',
+        {v:avg(g.list.map(function(d){return parseFloat(d.excluUseAr);})),f:'AVERAGE(G'+(s+1)+':G'+(e+1)+')',z:AREA},
+        c.type==='오피스텔'?'':{v:g.sup?g.sup.supply:null,f:'IFERROR(AVERAGE(H'+(s+1)+':H'+(e+1)+'),"")',z:AREA},
+        {v:pys.length?avg(pys):null,f:'IFERROR(AVERAGE(I'+(s+1)+':I'+(e+1)+'),"")',z:PY},
+        {v:js.length?Math.round(avg(js)):null,f:'IFERROR(ROUND(AVERAGE(J'+(s+1)+':J'+(e+1)+'),0),"")',z:NUM},
+        {v:ks.length?Math.round(avg(ks)):null,f:'IFERROR(ROUND(AVERAGE(K'+(s+1)+':K'+(e+1)+'),0),"")',z:NUM},'']);
+      gRef.push({label:g.label,row:rr,s:s,e:e,cnt:g.list.length,js:js,ks:ks,g:g});
+    });
+    var tr=T.length;
+    var rg=function(col){return ranges.map(function(x){return col+(x[0]+1)+':'+col+(x[1]+1);}).join(',');};
+    T.push(['', '', '단지 전체 평균', allJ.length+'건','','','','','',
+      {v:allJ.length?Math.round(avg(allJ)):null,f:'IFERROR(ROUND(AVERAGE('+rg('J')+'),0),"")',z:NUM},
+      {v:allK.length?Math.round(avg(allK)):null,f:'IFERROR(ROUND(AVERAGE('+rg('K')+'),0),"")',z:NUM},'']);
+    T.push([]);
+    tradeRef[key]={groups:gRef,total:tr,cnt:allJ.length,j:allJ,k:allK,ranges:ranges,rg:rg};
   });
+  var wsT=toSheet(T,{6:AREA,7:AREA,8:PY,9:NUM,10:NUM},[24,8,20,11,7,5,11,11,11,14,14,10],[{s:{r:0,c:0},e:{r:0,c:11}},{s:{r:1,c:0},e:{r:1,c:11}},{s:{r:2,c:0},e:{r:2,c:11}}].concat(tm));
 
-  var wsRent = XLSX.utils.aoa_to_sheet(rentData);
-  wsRent['!cols'] = [
-    {wch:20},{wch:8},{wch:6},{wch:10},{wch:8},{wch:8},
-    {wch:12},{wch:8},
-    {wch:10},{wch:8},
-    {wch:5},{wch:12},{wch:10}
-  ];
-  wsRent['!rows'] = [{hpt:28},{hpt:20},{hpt:8},{hpt:22}];
-  XLSX.utils.book_append_sheet(wb, wsRent, '전월세 거래내역');
+  // ════════════════ 단지·평형 요약 (매매 상세의 평균을 그대로 참조) ════════════════
+  var S=[], sm=[];
+  S.push(['단지·평형별 매매 요약']);
+  S.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
+  S.push(['단위: 천원 · 평당가 기준: 아파트 공급면적, 오피스텔 전용면적 · 평균값은 「'+TS+'」 시트의 평균 행을 참조합니다']);
+  S.push([]);
+  S.push(['단지명','유형','평형','거래건수','평균 거래금액(천원)','최저(천원)','최고(천원)','평균 평당가(천원/평)','최근 거래일','사업지 거리']);
+  var Q="'"+TS+"'!";
+  keys.forEach(function(key){
+    var c=allComplexes[key], ref=tradeRef[key];
+    if(!ref){S.push([c.name,c.type,'매매 없음',0,'','','','','',distTxt(c)]);return;}
+    ref.groups.forEach(function(gr,i){
+      var lr=gr.g.list.length?dt(gr.g.list[0]):'';
+      S.push([i===0?c.name:'',i===0?c.type:'',gr.label,gr.cnt,
+        {v:gr.js.length?Math.round(avg(gr.js)):null,f:Q+'J'+(gr.row+1),z:NUM},
+        {v:gr.js.length?Math.min.apply(null,gr.js):null,f:'MIN('+Q+'J'+(gr.s+1)+':J'+(gr.e+1)+')',z:NUM},
+        {v:gr.js.length?Math.max.apply(null,gr.js):null,f:'MAX('+Q+'J'+(gr.s+1)+':J'+(gr.e+1)+')',z:NUM},
+        {v:gr.ks.length?Math.round(avg(gr.ks)):null,f:Q+'K'+(gr.row+1),z:NUM},
+        lr, i===0?distTxt(c):'']);
+    });
+    S.push(['',  '', '단지 전체', ref.cnt,
+      {v:ref.j.length?Math.round(avg(ref.j)):null,f:Q+'J'+(ref.total+1),z:NUM},
+      {v:ref.j.length?Math.min.apply(null,ref.j):null,f:'MIN('+ref.ranges.map(function(x){return Q+'J'+(x[0]+1)+':J'+(x[1]+1);}).join(',')+')',z:NUM},
+      {v:ref.j.length?Math.max.apply(null,ref.j):null,f:'MAX('+ref.ranges.map(function(x){return Q+'J'+(x[0]+1)+':J'+(x[1]+1);}).join(',')+')',z:NUM},
+      {v:ref.k.length?Math.round(avg(ref.k)):null,f:Q+'K'+(ref.total+1),z:NUM},'','']);
+    S.push([]);
+  });
+  var wsS=toSheet(S,{4:NUM,5:NUM,6:NUM,7:NUM},[24,8,20,9,17,13,13,18,12,10],[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}},{s:{r:2,c:0},e:{r:2,c:9}}]);
 
-  // 파일 다운로드
-  XLSX.writeFile(wb, '부동산분석_'+dateStr+'_'+selectedKeys.size+'개단지.xlsx');
-  setStatus('ok','Excel 다운로드 완료 ('+selectedKeys.size+'개 단지, 3개 시트)');
+  // ════════════════ 전월세 상세 (단지 → 평형 → 거래) ════════════════
+  var R=[], rm=[];
+  R.push(['전월세 거래 상세 — 단지·평형별']);
+  R.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
+  R.push(['단위: 천원 · 전세 평균은 전세 거래만, 월세 평균은 월세 거래만으로 계산']);
+  R.push([]);
+  R.push(['단지명','유형','평형','구분','거래일','층','전용면적(㎡)','보증금(천원)','월세(천원)']);
+  keys.forEach(function(key){
+    var c=allComplexes[key];
+    var groups=groupByType(c,c.rents);
+    if(!groups.length)return;
+    var hr=R.length;
+    R.push(['■ '+c.name+'  ('+c.type+' · '+c.dong+' · 사업지 '+distTxt(c)+')']);
+    rm.push({s:{r:hr,c:0},e:{r:hr,c:8}});
+    groups.forEach(function(g){
+      var s=R.length;
+      g.list.forEach(function(d){
+        R.push([c.name,c.type,g.label,d._rt,dt(d),d.floor?parseInt(d.floor):'',parseFloat(d.excluUseAr),K(d.deposit)||null,K(d.monthlyRent)||(d._rt==='월세'?null:'')]);
+      });
+      var e=R.length-1, rg='D'+(s+1)+':D'+(e+1);
+      var js=g.list.filter(function(d){return d._rt==='전세';}), ws=g.list.filter(function(d){return d._rt==='월세';});
+      if(js.length)R.push(['','',g.label+' 전세 평균',js.length+'건','','','',
+        {v:Math.round(avg(js.map(function(d){return K(d.deposit);}))),f:'ROUND(AVERAGEIF('+rg+',"전세",H'+(s+1)+':H'+(e+1)+'),0)',z:NUM},'']);
+      if(ws.length)R.push(['','',g.label+' 월세 평균',ws.length+'건','','','',
+        {v:Math.round(avg(ws.map(function(d){return K(d.deposit);}))),f:'ROUND(AVERAGEIF('+rg+',"월세",H'+(s+1)+':H'+(e+1)+'),0)',z:NUM},
+        {v:Math.round(avg(ws.map(function(d){return K(d.monthlyRent);}))),f:'ROUND(AVERAGEIF('+rg+',"월세",I'+(s+1)+':I'+(e+1)+'),0)',z:NUM}]);
+    });
+    R.push([]);
+  });
+  var wsR=toSheet(R,{6:AREA,7:NUM,8:NUM},[24,8,20,12,11,5,11,14,11],[{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}},{s:{r:2,c:0},e:{r:2,c:8}}].concat(rm));
+
+  // ════════════════ 단지 정보 (식별·위치) ════════════════
+  var I=[];
+  I.push(['단지 정보']);
+  I.push([]);
+  I.push(['단지명','유형','법정동','지번','도로명주소','건축년도','사업지 거리','단지고유번호','시군구코드','법정동코드','본번','부번','좌표 출처','지번 출처']);
+  keys.forEach(function(key){
+    var c=allComplexes[key];
+    I.push([c.name,c.type,c.dong,c.jibunTxt||'',roadAddr(c)||'',c.buildYear||'',distTxt(c),c.aptSeq||'',c.sigunguCd||'',c.bjdongCd||'',c.bun||'',c.ji||'',
+      c._geoSrc==='road'?'도로명':c._geoSrc==='lot'?'지번':c._geoSrc==='name'?'단지명':'',
+      c.lotSrc==='code'?'본번·부번':c.lotSrc==='seq'?'고유번호':c.lotSrc==='jibun'?'지번파싱':c.lotSrc==='coord'?'좌표보완':'']);
+  });
+  var wsI=toSheet(I,{},[24,8,10,10,30,8,10,14,10,10,7,7,9,10],[]);
+
+  XLSX.utils.book_append_sheet(wb, wsS, '단지·평형 요약');
+  XLSX.utils.book_append_sheet(wb, wsT, TS);
+  XLSX.utils.book_append_sheet(wb, wsR, '전월세 상세');
+  XLSX.utils.book_append_sheet(wb, wsI, '단지 정보');
+  XLSX.writeFile(wb, '실거래분석_'+ymd+'_'+keys.length+'개단지.xlsx');
+  setStatus('ok','Excel 다운로드 완료 ('+keys.length+'개 단지, 4개 시트 · 단위 천원)');
 }
 function closeDetail(){document.getElementById('detailPanel').classList.remove('open');relayoutMap();}
 
