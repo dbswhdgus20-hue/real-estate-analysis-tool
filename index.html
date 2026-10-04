@@ -252,7 +252,6 @@ button{font-family:inherit}
 .complex-label.mini:hover{z-index:9}
 .complex-label .cl-name{font-size:11px;font-weight:600;white-space:nowrap}
 .complex-label .cl-avg{font-size:10px;font-weight:700;opacity:.92}
-.complex-label .cl-est{font-size:8.5px;font-weight:600;opacity:.75;margin-left:3px}
 .leg-price{display:flex;align-items:center;gap:6px;color:var(--ui-ink-2)}
 .leg-price .lp-title{white-space:nowrap}
 .leg-price .lp-title small{font-size:9.5px;color:var(--ui-ink-3);margin-left:2px}
@@ -672,8 +671,6 @@ tr:last-child td{border-bottom:none}
 
       <!-- 범례 -->
       <div class="map-legend">
-        <div class="leg-item"><div class="leg-sw" style="background:var(--kirt-brown)"></div>사업지</div>
-        <div class="leg-sep"></div>
         <div class="leg-price" id="legApt" title="아파트 평당가 = 거래금액 ÷ 공급면적(평). 건축물대장이 있으면 실측, 없으면 건축년도별 전용률로 추정"></div>
         <div class="leg-price" id="legOft" title="오피스텔 평당가 = 거래금액 ÷ 전용면적(평)"></div>
         <div class="leg-item"><div class="leg-sw" style="background:#fff;border:1px solid var(--kirt-brown);border-left:3px solid var(--kirt-brown)"></div>신규분양</div>
@@ -952,8 +949,8 @@ function paintPriceLabel(ol){
   if(body)body.style.color=ink;
   if(tail)tail.style.borderTop='7px solid '+color;
   if(av){
-    av.innerHTML=ol.__py?pyFmt(ol.__py.v)+(ol.__py.est?'<span class="cl-est">추정</span>':''):'-';
-    var basis=c.type==='오피스텔'?'전용면적 기준':(ol.__py&&ol.__py.est?'공급면적 기준 · 건축물대장 미조회로 전용률 추정 (상세를 열면 실측으로 바뀜)':'공급면적 기준 · 건축물대장 실측');
+    av.textContent=ol.__py?pyFmt(ol.__py.v):'-';
+    var basis=c.type==='오피스텔'?'전용면적 기준':'공급면적 기준';
     av.title='평당가 '+pyFmt(ol.__py&&ol.__py.v)+' — '+basis+(ol.__avg?' / 평균 거래가 '+(ol.__avg>=10000?(ol.__avg/10000).toFixed(1)+'억':ol.__avg.toLocaleString()+'만'):'');
   }
 }
