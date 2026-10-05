@@ -170,6 +170,9 @@ button{font-family:inherit}
 .ppbtn{height:24px;padding:0 8px;font-size:10.5px}
 .rbtn:hover,.ppbtn:hover,.fbtn:hover{opacity:.82}
 .rbtn.active,.fbtn.active{background:var(--ui-accent);color:#fff;border-color:var(--ui-accent);font-weight:700}
+.ppbtn.on{background:var(--ui-accent);color:#fff;border-color:var(--ui-accent);font-weight:700}
+.complex-label .cl-sale{display:inline-block;font-size:9px;font-weight:700;line-height:13px;padding:0 4px;margin-right:4px;
+  background:#fff;color:#222;border:1px solid rgba(0,0,0,.28);vertical-align:1px}
 
 /* ══════════ 메인 ══════════ */
 .main{flex:1;display:flex;min-height:0;overflow:hidden}
@@ -618,6 +621,16 @@ tr:last-child td{border-bottom:none}
       <button class="ppbtn" onclick="setAge(10,20)" title="건축 10~20년">10~20년</button>
       <button class="ppbtn" onclick="setAge(20,0)" title="건축 20년 이상 (구축)">20년 이상</button>
       <button class="ppbtn" onclick="setAge(0,0)">해제</button>
+    </div>
+
+    <span class="h-sep"></span>
+
+    <div class="hrow" title="K-apt(공동주택관리정보시스템) 분양형태 기준. K-apt에 없는 단지(소규모 등)와 오피스텔은 '분양'으로 봅니다. 혼합 = 한 단지 안에 분양·임대 세대가 함께 있음">
+      <span class="h-lbl">분양형태</span>
+      <button class="ppbtn sale-btn on" data-s="all" onclick="setSale('all')">전체</button>
+      <button class="ppbtn sale-btn" data-s="noRent" onclick="setSale('noRent')" title="임대 단지만 빼고 혼합 단지는 남김">임대 제외</button>
+      <button class="ppbtn sale-btn" data-s="saleOnly" onclick="setSale('saleOnly')" title="임대·혼합 단지를 모두 뺌">분양만</button>
+      <button class="ppbtn sale-btn" data-s="rentOnly" onclick="setSale('rentOnly')" title="임대·혼합 단지만 남김">임대·혼합만</button>
     </div>
 
     <span class="h-sep"></span>
@@ -1074,7 +1087,7 @@ function toggleFilters(){
 }
 function markFilterDot(){
   var btn=document.getElementById('moreBtn'); if(!btn)return;
-  var on=afActive()||ageActive()
+  var on=afActive()||ageActive()||saleActive()
     ||!!document.getElementById('priceMin').value||!!document.getElementById('priceMax').value
     ||!document.getElementById('exCanceled').checked||document.getElementById('exDirect').checked||!document.getElementById('ledgerOn').checked;
   var dot=btn.querySelector('.dot');
@@ -1297,7 +1310,7 @@ function applyAreaToMap(){
     ol.__py=pyPrice(c,rows);
     ol.__n=rows.length;
     // 면적 필터가 걸린 상태에서 해당 면적 거래가 아예 없으면 숨긴다. 연식이 범위 밖이어도 숨긴다.
-    ol.__hidden = (on && rows.length===0) || !ageOk(c);
+    ol.__hidden = (on && rows.length===0) || !complexOk(c);
     if(!ol.__hidden&&ol.__avg>0)vals.push(ol.__avg);
   });
   // 남은 단지 기준으로 유형별 평당가 눈금(5분위)을 다시 잡는다
@@ -1326,11 +1339,12 @@ function applyAreaToMap(){
 function updateAreaBadge(shown){
   var el=document.getElementById('areaTag');
   if(!el)return;
-  if(!afActive()&&!ageActive()){el.style.display='none';return;}
+  if(!afActive()&&!ageActive()&&!saleActive()){el.style.display='none';return;}
   el.style.display='';
   var parts=[];
   if(afActive())parts.push('전용 '+afLabel());
   if(ageActive())parts.push('연식 '+ageLabel());
+  if(saleActive())parts.push(SALE_LABEL[SALE_F]);
   el.textContent=parts.join(' · ')+' · 단지 '+shown+'/'+overlays.length;
 }
 
@@ -1379,6 +1393,23 @@ function ageOk(c){
   if(a.max&&g>a.max)return false;
   return true;
 }
+// ── 분양형태 필터 ──
+var SALE_F='all';
+var SALE_LABEL={noRent:'임대 제외',saleOnly:'분양만',rentOnly:'임대·혼합만'};
+function saleActive(){return SALE_F!=='all';}
+function saleOk(c){
+  var t=c&&c.saleType||'';
+  if(SALE_F==='noRent')return t!=='임대';
+  if(SALE_F==='saleOnly')return !t||t==='분양';
+  if(SALE_F==='rentOnly')return t==='임대'||t==='혼합';
+  return true;
+}
+function complexOk(c){return ageOk(c)&&saleOk(c);}
+function setSale(m){
+  SALE_F=m||'all';
+  document.querySelectorAll('.sale-btn').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-s')===SALE_F);});
+  onAgeChange();
+}
 function ageLabel(){
   var a=getAge();
   if(!a.min&&!a.max)return '';
@@ -1396,7 +1427,7 @@ function onAgeChange(){
   applyAreaToMap();
   // 숨겨진 단지는 선택에서도 뺀다 (Excel 대상이 화면과 어긋나지 않게)
   if(typeof selectedKeys!=='undefined'&&selectedKeys.size){
-    [...selectedKeys].forEach(function(k){if(!ageOk(allComplexes[k]))selectedKeys.delete(k);});
+    [...selectedKeys].forEach(function(k){if(!complexOk(allComplexes[k]))selectedKeys.delete(k);});
     if(typeof renderSelectBar==='function')renderSelectBar();
   }
 }
@@ -2406,6 +2437,120 @@ function supplySrcLabel(s){
   return s.src==='ledger'?(s.loose?'대장(근사)':'대장'):'추정';
 }
 // 선택 단지 전부의 대장을 미리 받아둔다 (Excel 내보내기 직전)
+// ── K-apt 분양형태 (분양/임대/혼합) ──
+// 법정동마다 K-apt 단지 목록을 받아 이름(브랜드 표기 통일)으로 맞추고, 맞은 단지의 기본정보에서 분양형태를 읽는다.
+// 이름이 안 맞으면 같은 법정동 단지들의 주소 지번으로 한 번 더 맞춘다. 결과는 30일 동안 브라우저에 저장.
+// K-apt는 의무관리대상(150세대 이상 등)만 있어 소규모 단지는 'K-apt 미등재'로 남고 필터에서는 '분양'으로 본다.
+var KAPT_TTL=30*864e5, KAPT_LIST='kirt.kapt.list.v1.', KAPT_BASIC='kirt.kapt.basic.v1.';
+var kaptGen=0, kaptCalls=0, kaptBlocked='';
+function lsGetT(k,ttl){try{var r=localStorage.getItem(k);if(!r)return null;var o=JSON.parse(r);return (o&&o.t&&Date.now()-o.t<ttl)?o.v:null;}catch(e){return null;}}
+function lsSetT(k,v){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),v:v}));}catch(e){}}
+async function kaptGet(route,params){
+  kaptCalls++;
+  var r=await fetch(PROXY_BASE+'/'+route+'?'+qs(params),{cache:'default'});
+  var j=null;try{j=await r.json();}catch(e){}
+  if(!r.ok||!j||j.ok!==true)throw new Error((j&&j.error)||('HTTP '+r.status));
+  return j.items||[];
+}
+async function kaptList(bjd){
+  var c=lsGetT(KAPT_LIST+bjd,KAPT_TTL); if(c)return c;
+  var it=await kaptGet('kapt-list',{bjdCode:bjd});
+  var v=it.map(function(x){return {code:String(x.kaptCode||x.kaptcode||''),name:String(x.kaptName||x.kaptname||'')};}).filter(function(x){return x.code;});
+  lsSetT(KAPT_LIST+bjd,v); return v;
+}
+async function kaptBasic(code){
+  var c=lsGetT(KAPT_BASIC+code,KAPT_TTL); if(c)return c;
+  var it=await kaptGet('kapt-basic',{kaptCode:code});
+  var x=it[0]||{};
+  var v={code:code,name:String(x.kaptName||''),sale:String(x.codeSaleNm||'').trim(),addr:String(x.kaptAddr||''),cnt:x.kaptdaCnt||x.hoCnt||''};
+  lsSetT(KAPT_BASIC+code,v); return v;
+}
+function kaptNameHit(a,b){
+  a=normHouseName(a);b=normHouseName(b);
+  return !!a&&!!b&&a.length>=2&&b.length>=2&&(a===b||(a.length>=4&&b.indexOf(a)!==-1)||(b.length>=4&&a.indexOf(b)!==-1));
+}
+function paintSaleOnLabel(c){
+  var ol=overlays.filter(function(o){return allComplexes[o.__key]===c;})[0];
+  if(!ol||!ol.__el)return;
+  var nm=ol.__el.querySelector('.cl-name'); if(!nm)return;
+  var tag=nm.querySelector('.cl-sale');
+  var show=c.saleType==='임대'||c.saleType==='혼합';
+  if(!show){if(tag)tag.remove();return;}
+  if(!tag){tag=document.createElement('span');tag.className='cl-sale';nm.insertBefore(tag,nm.firstChild);}
+  tag.textContent=c.saleType;
+  tag.title=c.saleType==='혼합'?'분양·임대 세대가 함께 있는 단지 (K-apt)':'임대 단지 (K-apt)';
+}
+function kaptKeyError(m){return /SERVICE.?KEY|NOT.?REGISTERED|SERVICE_ACCESS_DENIED|등록되지 않은|30 /i.test(String(m||''));}
+async function loadSaleTypes(){
+  if(API_MODE!=='proxy'||kaptBlocked)return;
+  var gen=++kaptGen;
+  var groups={};
+  Object.keys(allComplexes).forEach(function(k){
+    var c=allComplexes[k];
+    if(c.type!=='아파트'||!c.sigunguCd||!c.bjdongCd||c.saleType)return;
+    c._kapt='loading';
+    var b=String(c.sigunguCd)+String(c.bjdongCd);
+    (groups[b]=groups[b]||[]).push(c);
+  });
+  var found=0,total=0;
+  try{
+    for(var bjd in groups){
+      if(gen!==kaptGen)return;
+      var list=await kaptList(bjd);
+      var cs=groups[bjd]; total+=cs.length;
+      var used={};
+      // ① 이름으로 맞추기
+      for(var i=0;i<cs.length;i++){
+        var c=cs[i];
+        var cand=list.filter(function(x){return kaptNameHit(c.name,x.name);});
+        var pick=null;
+        if(cand.length===1)pick=cand[0];
+        else if(cand.length>1){
+          for(var q=0;q<cand.length&&!pick;q++){
+            var bb=await kaptBasic(cand[q].code);
+            if(c.jibunTxt&&lotKey(lotOfAddr(bb.addr))===lotKey(c.jibunTxt))pick=cand[q];
+          }
+          if(!pick)pick=cand[0];
+        }
+        if(pick){c._kaptCode=pick.code;used[pick.code]=1;}
+      }
+      // ② 이름이 안 맞은 단지는 같은 법정동 K-apt 단지의 주소 지번으로 맞추기 (동당 최대 40곳)
+      var rest=cs.filter(function(c){return !c._kaptCode&&c.jibunTxt;});
+      if(rest.length){
+        var pool=list.filter(function(x){return !used[x.code];}).slice(0,40);
+        for(var p=0;p<pool.length&&rest.some(function(c){return !c._kaptCode;});p++){
+          if(gen!==kaptGen)return;
+          var b2=await kaptBasic(pool[p].code);
+          var lk=lotKey(lotOfAddr(b2.addr));
+          rest.forEach(function(c){if(!c._kaptCode&&lk&&lk===lotKey(c.jibunTxt))c._kaptCode=pool[p].code;});
+        }
+      }
+      // ③ 분양형태 읽기
+      for(var j=0;j<cs.length;j++){
+        if(gen!==kaptGen)return;
+        var c3=cs[j];
+        if(!c3._kaptCode){c3._kapt='none';continue;}
+        var info=await kaptBasic(c3._kaptCode);
+        c3.kaptCode=c3._kaptCode; c3.saleType=info.sale||''; c3.kaptCnt=info.cnt||''; c3._kapt='ok';
+        if(c3.saleType)found++;
+        paintSaleOnLabel(c3);
+        if(curComplex===c3&&document.getElementById('detailPanel').classList.contains('open'))renderDetail();
+      }
+    }
+  }catch(e){
+    console.warn('[K-apt 분양형태] '+e.message);
+    Object.keys(allComplexes).forEach(function(k){if(allComplexes[k]._kapt==='loading')allComplexes[k]._kapt='error';});
+    if(kaptKeyError(e.message)){
+      kaptBlocked=e.message;
+      setStatus('info','분양형태(임대) 표시: 공공데이터포털에서 "공동주택 단지 목록제공 서비스"와 "공동주택 기본 정보제공 서비스" 활용신청이 필요합니다');
+    }
+    return;
+  }
+  if(gen!==kaptGen)return;
+  if(saleActive())applyAreaToMap();
+  console.log('[K-apt 분양형태] '+found+'/'+total+'개 단지 확인 · 호출 '+kaptCalls+'건');
+}
+
 // ── 분석 후 자동 실측 ──
 // 반경 안 아파트의 건축물대장을 사업지에서 가까운 순서로 하나씩 받아 라벨을 실측 평당가로 바꾼다.
 // 한 단지씩(동시에 여러 단지를 부르면 대장 API 초당 제한에 걸린다), 새 분석을 시작하면 중단.
@@ -2785,6 +2930,7 @@ async function runAnalysis(){
   if(clusterer){clusterer.clear();clusterer=null;}
   cxMarkers=[];
   ledgerGen++;           // 진행 중인 자동 실측 중단
+  kaptGen++;             // 진행 중인 분양형태 조회 중단
   allComplexes={};complexIndex=[];selectedKeys.clear();closePanel();closeDetail();hideCard();
   statCanceled=0;statFetched=0;statTruncated=[];statLot=null;statGeo=null;
   var _at=document.getElementById('areaTag');if(_at)_at.style.display='none';
@@ -3071,6 +3217,7 @@ async function runAnalysis(){
     setProg(100,'분양단지 조회 중...');
     loadBunyang();
     autoLedgers();         // 반경 안 아파트의 공급면적을 백그라운드에서 실측으로 바꾼다
+    loadSaleTypes();       // K-apt 분양형태(분양/임대/혼합)를 받아 라벨에 표시
     document.getElementById('selectBar').style.display='block';
     renderSelectBar();
   }catch(e){setStatus('err','오류: '+e.message);console.error(e);}
@@ -3176,7 +3323,7 @@ function toggleSelect(key){
   renderSelectBar();
 }
 function selectAll(){
-  var all=Object.keys(allComplexes).filter(function(k){return ageOk(allComplexes[k]);});
+  var all=Object.keys(allComplexes).filter(function(k){return complexOk(allComplexes[k]);});
   // 전체가 이미 선택돼 있으면 전체 해제로 동작
   if(all.length&&all.every(k=>selectedKeys.has(k)))selectedKeys.clear();
   else all.forEach(k=>selectedKeys.add(k));
@@ -3251,7 +3398,7 @@ async function exportExcel(){
     return {sup:s,py:s&&s.supply>0?s.supply/PYM:null,src:supplySrcLabel(s)};
   }
 
-  var keys=[...selectedKeys].filter(function(k){return allComplexes[k]&&ageOk(allComplexes[k]);})
+  var keys=[...selectedKeys].filter(function(k){return allComplexes[k]&&complexOk(allComplexes[k]);})
     .sort(function(a,b){return (allComplexes[a].dist||0)-(allComplexes[b].dist||0);});
 
   // ════════════════ 매매 상세 (단지 → 평형 → 거래) ════════════════
@@ -3269,7 +3416,7 @@ async function exportExcel(){
     var groups=groupByType(c,c.trades);
     if(!groups.length)return;
     var hr=T.length;
-    T.push(['■ '+c.name+'  ('+c.type+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.buildYear||'-')+'년 · 사업지 '+distTxt(c)+')']);
+    T.push(['■ '+c.name+'  ('+c.type+(c.saleType&&c.saleType!=='분양'?' · '+c.saleType:'')+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.buildYear||'-')+'년 · 사업지 '+distTxt(c)+')']);
     tm.push({s:{r:hr,c:0},e:{r:hr,c:12}});
     var allJ=[],allK=[],ranges=[],gRef=[];
     groups.forEach(function(g){
@@ -3368,14 +3515,15 @@ async function exportExcel(){
   var I=[];
   I.push(['단지 정보']);
   I.push([]);
-  I.push(['단지명','유형','법정동','지번','도로명주소','건축년도','사업지 거리','단지고유번호','시군구코드','법정동코드','본번','부번','좌표 출처','지번 출처']);
+  I.push(['단지명','유형','법정동','지번','도로명주소','건축년도','사업지 거리','단지고유번호','시군구코드','법정동코드','본번','부번','좌표 출처','지번 출처','분양형태(K-apt)','세대수(K-apt)','K-apt 단지코드']);
   keys.forEach(function(key){
     var c=allComplexes[key];
     I.push([c.name,c.type,c.dong,c.jibunTxt||'',roadAddr(c)||'',c.buildYear||'',distTxt(c),c.aptSeq||'',c.sigunguCd||'',c.bjdongCd||'',c.bun||'',c.ji||'',
       c._geoSrc==='road'?'도로명':c._geoSrc==='lot'?'지번':c._geoSrc==='name'?'단지명':'',
-      c.lotSrc==='code'?'본번·부번':c.lotSrc==='seq'?'고유번호':c.lotSrc==='jibun'?'지번파싱':c.lotSrc==='coord'?'좌표보완':'']);
+      c.lotSrc==='code'?'본번·부번':c.lotSrc==='seq'?'고유번호':c.lotSrc==='jibun'?'지번파싱':c.lotSrc==='coord'?'좌표보완':'',
+      c.saleType||'', c.kaptCnt?Number(c.kaptCnt):'', c.kaptCode||'']);
   });
-  var wsI=toSheet(I,{},[24,8,10,10,30,8,10,14,10,10,7,7,9,10],[]);
+  var wsI=toSheet(I,{},[24,8,10,10,30,8,10,14,10,10,7,7,9,10,12,11,12],[]);
 
   XLSX.utils.book_append_sheet(wb, wsS, '단지·평형 요약');
   XLSX.utils.book_append_sheet(wb, wsT, TS);
@@ -4058,6 +4206,7 @@ function renderDetail(){
   // 섹션1: 기본 정보
   html+='<div class="dsec"><div class="dsec-title">기본 정보</div>'+
     '<div class="drow"><span class="dk">유형</span><span class="dv"><span class="badge '+(c.type==='아파트'?'b-apt':'b-oft')+'">'+c.type+'</span></span></div>'+
+    (c.type==='아파트'?'<div class="drow"><span class="dk">분양형태</span><span class="dv" title="K-apt 기준">'+(c.saleType||(c._kapt==='none'?'K-apt 미등재':c._kapt==='loading'?'확인 중':'-'))+(c.kaptCnt?' · '+Number(c.kaptCnt).toLocaleString()+'세대':'')+'</span></div>':'')+
     '<div class="drow"><span class="dk">법정동</span><span class="dv">'+c.dong+'</span></div>'+
     '<div class="drow"><span class="dk">지번</span><span class="dv">'+lotCell(c)+'</span></div>'+
     (c.aptSeq?'<div class="drow"><span class="dk">단지 고유번호</span><span class="dv" style="font-size:11px" title="국토교통부 단지 일련번호 — 이름이 같아도 이 번호로 구분한다">'+c.aptSeq+'</span></div>':'')+
