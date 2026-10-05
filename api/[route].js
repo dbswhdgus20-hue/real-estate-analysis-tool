@@ -55,13 +55,13 @@ const ROUTES = {
     paths: ['/1613000/AptListService4/getLegaldongAptList4', '/1613000/AptListService3/getLegaldongAptList3',
             '/1613000/AptListService2/getLegaldongAptList'],
     path: '/1613000/AptListService4/getLegaldongAptList4',
-    params: ['bjdCode'], cache: 'static', kapt: true, rows: 1000,
+    params: ['bjdCode'], cache: 'static', kapt: true, rows: 1000, minIntervalMs: 150,
   },
   'kapt-basic': {
     paths: ['/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5', '/1613000/AptBasisInfoServiceV4/getAphusBassInfoV4',
             '/1613000/AptBasisInfoServiceV3/getAphusBassInfoV3'],
     path: '/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5',
-    params: ['kaptCode'], cache: 'static', kapt: true, rows: 1,
+    params: ['kaptCode'], cache: 'static', kapt: true, rows: 1, minIntervalMs: 150,
   },
   'bunyang': {
     host: 'odcloud',
@@ -303,14 +303,21 @@ async function fetchKapt(spec, params, key) {
   const tries = kaptPathOk[spec.path] ? [kaptPathOk[spec.path]] : (spec.paths || [spec.path]);
   let lastErr = null;
   for (const path of tries) {
-    try {
-      const out = await fetchKaptOnce(spec, path, params, key);
-      kaptPathOk[spec.path] = path;
-      return { ...out, path };
-    } catch (e) {
-      lastErr = e;
-      if (!/^12\b|NO_OPENAPI_SERVICE/.test(String(e.message))) throw e;   // 경로 문제(12)일 때만 다음 버전 시도
+    // 상류가 간헐적으로 '04 HTTP_ERROR'·타임아웃을 준다(실측 2026-10-05) → 같은 경로로 최대 3번
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const out = await fetchKaptOnce(spec, path, params, key);
+        kaptPathOk[spec.path] = path;
+        return { ...out, path };
+      } catch (e) {
+        lastErr = e;
+        const again = e.transient || isRateLimited(e.message) || e.name === 'TimeoutError' || e.name === 'AbortError'
+          || /fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e.message));
+        if (again && i < 3) { await sleep(isRateLimited(e.message) ? 1500 * i : 400 * i); continue; }
+        break;
+      }
     }
+    if (!/^12\b|NO_OPENAPI_SERVICE/.test(String(lastErr && lastErr.message))) throw lastErr;   // 경로 문제(12)일 때만 다음 버전 시도
   }
   throw lastErr;
 }

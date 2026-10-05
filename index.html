@@ -2492,10 +2492,10 @@ async function loadSaleTypes(){
     var b=String(c.sigunguCd)+String(c.bjdongCd);
     (groups[b]=groups[b]||[]).push(c);
   });
-  var found=0,total=0;
-  try{
-    for(var bjd in groups){
-      if(gen!==kaptGen)return;
+  var found=0,total=0,failed=0;
+  for(var bjd in groups){
+    if(gen!==kaptGen)return;
+    try{
       var list=await kaptList(bjd);
       var cs=groups[bjd]; total+=cs.length;
       var used={};
@@ -2503,6 +2503,12 @@ async function loadSaleTypes(){
       for(var i=0;i<cs.length;i++){
         var c=cs[i];
         var cand=list.filter(function(x){return kaptNameHit(c.name,x.name);});
+        // K-apt는 같은 단지의 임대동을 따로 올리기도 한다(예: '공덕삼성'과 '공덕삼성임대').
+        // 우리 단지 이름에 임대·행복주택이 없으면 그런 항목은 후보에서 빼고, 이름이 완전히 같은 항목을 우선한다.
+        var rentNm=/임대|행복주택|국민임대|영구임대/;
+        if(!rentNm.test(c.name)){var nr=cand.filter(function(x){return !rentNm.test(x.name);}); if(nr.length)cand=nr;}
+        var exact=cand.filter(function(x){return normHouseName(x.name)===normHouseName(c.name);});
+        if(exact.length)cand=exact;
         var pick=null;
         if(cand.length===1)pick=cand[0];
         else if(cand.length>1){
@@ -2525,30 +2531,38 @@ async function loadSaleTypes(){
           rest.forEach(function(c){if(!c._kaptCode&&lk&&lk===lotKey(c.jibunTxt))c._kaptCode=pool[p].code;});
         }
       }
-      // ③ 분양형태 읽기
+      // ③ 분양형태 읽기 (단지 하나가 실패해도 나머지는 계속)
       for(var j=0;j<cs.length;j++){
         if(gen!==kaptGen)return;
         var c3=cs[j];
         if(!c3._kaptCode){c3._kapt='none';continue;}
-        var info=await kaptBasic(c3._kaptCode);
-        c3.kaptCode=c3._kaptCode; c3.saleType=info.sale||''; c3.kaptCnt=info.cnt||''; c3._kapt='ok';
-        if(c3.saleType)found++;
-        paintSaleOnLabel(c3);
-        if(curComplex===c3&&document.getElementById('detailPanel').classList.contains('open'))renderDetail();
+        try{
+          var info=await kaptBasic(c3._kaptCode);
+          c3.kaptCode=c3._kaptCode; c3.saleType=info.sale||''; c3.kaptCnt=info.cnt||''; c3._kapt='ok';
+          if(c3.saleType)found++;
+          paintSaleOnLabel(c3);
+          if(curComplex===c3&&document.getElementById('detailPanel').classList.contains('open'))renderDetail();
+        }catch(e3){
+          c3._kapt='error'; failed++;
+          console.warn('[K-apt 분양형태] '+c3.name+' → '+e3.message);
+          if(kaptKeyError(e3.message))throw e3;
+        }
+      }
+    }catch(e){
+      console.warn('[K-apt 분양형태] 법정동 '+bjd+' → '+e.message);
+      groups[bjd].forEach(function(c){if(c._kapt==='loading')c._kapt='error';});
+      failed+=groups[bjd].length;
+      if(kaptKeyError(e.message)){
+        kaptBlocked=e.message;
+        Object.keys(allComplexes).forEach(function(k){if(allComplexes[k]._kapt==='loading')allComplexes[k]._kapt='error';});
+        setStatus('info','분양형태(임대) 표시: 공공데이터포털에서 "공동주택 단지 목록제공 서비스"와 "공동주택 기본 정보제공 서비스" 활용신청이 필요합니다');
+        return;
       }
     }
-  }catch(e){
-    console.warn('[K-apt 분양형태] '+e.message);
-    Object.keys(allComplexes).forEach(function(k){if(allComplexes[k]._kapt==='loading')allComplexes[k]._kapt='error';});
-    if(kaptKeyError(e.message)){
-      kaptBlocked=e.message;
-      setStatus('info','분양형태(임대) 표시: 공공데이터포털에서 "공동주택 단지 목록제공 서비스"와 "공동주택 기본 정보제공 서비스" 활용신청이 필요합니다');
-    }
-    return;
   }
   if(gen!==kaptGen)return;
   if(saleActive())applyAreaToMap();
-  console.log('[K-apt 분양형태] '+found+'/'+total+'개 단지 확인 · 호출 '+kaptCalls+'건');
+  console.log('[K-apt 분양형태] '+found+'/'+total+'개 단지 확인'+(failed?' · 실패 '+failed:'')+' · 호출 '+kaptCalls+'건');
 }
 
 // ── 분석 후 자동 실측 ──
