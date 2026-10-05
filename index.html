@@ -607,6 +607,21 @@ tr:last-child td{border-bottom:none}
 
     <span class="h-sep"></span>
 
+    <div class="hrow" title="건축년도 기준 경과 연수 (올해 − 건축년도). 건축년도가 없는 단지는 필터를 걸면 빠집니다.">
+      <span class="h-lbl">연식</span>
+      <input class="hi num" type="number" id="ageMin" placeholder="최소" style="width:52px;text-align:right" min="0" step="1"/>
+      <span class="h-lbl">~</span>
+      <input class="hi num" type="number" id="ageMax" placeholder="최대" style="width:52px;text-align:right" min="0" step="1"/>
+      <span class="h-lbl">년</span>
+      <button class="ppbtn" onclick="setAge(0,5)" title="건축 5년 이내 (신축)">5년 이내</button>
+      <button class="ppbtn" onclick="setAge(0,10)" title="건축 10년 이내">10년 이내</button>
+      <button class="ppbtn" onclick="setAge(10,20)" title="건축 10~20년">10~20년</button>
+      <button class="ppbtn" onclick="setAge(20,0)" title="건축 20년 이상 (구축)">20년 이상</button>
+      <button class="ppbtn" onclick="setAge(0,0)">해제</button>
+    </div>
+
+    <span class="h-sep"></span>
+
     <label class="h-chk" title="신고 후 취소된 계약을 평균가·최고가 집계에서 제외합니다.">
       <input type="checkbox" id="exCanceled" checked onchange="toggleCanceled(this.checked)"/>해제거래 제외
     </label>
@@ -1055,7 +1070,7 @@ function toggleFilters(){
 }
 function markFilterDot(){
   var btn=document.getElementById('moreBtn'); if(!btn)return;
-  var on=afActive()
+  var on=afActive()||ageActive()
     ||!!document.getElementById('priceMin').value||!!document.getElementById('priceMax').value
     ||!document.getElementById('exCanceled').checked||!document.getElementById('ledgerOn').checked;
   var dot=btn.querySelector('.dot');
@@ -1109,6 +1124,12 @@ function initKeyboard(){
     if(!el)return;
     el.addEventListener('change',onAreaChange);
     el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();onAreaChange();}});
+  });
+  ['ageMin','ageMax'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('change',onAgeChange);
+    el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();onAgeChange();}});
   });
   var addr=document.getElementById('addrInput');
   addr.addEventListener('keydown',function(e){
@@ -1271,8 +1292,8 @@ function applyAreaToMap(){
     ledgerFromCache(c);
     ol.__py=pyPrice(c,rows);
     ol.__n=rows.length;
-    // 면적 필터가 걸린 상태에서 해당 면적 거래가 아예 없으면 숨긴다
-    ol.__hidden = on && rows.length===0;
+    // 면적 필터가 걸린 상태에서 해당 면적 거래가 아예 없으면 숨긴다. 연식이 범위 밖이어도 숨긴다.
+    ol.__hidden = (on && rows.length===0) || !ageOk(c);
     if(!ol.__hidden&&ol.__avg>0)vals.push(ol.__avg);
   });
   // 남은 단지 기준으로 유형별 평당가 눈금(5분위)을 다시 잡는다
@@ -1288,6 +1309,7 @@ function applyAreaToMap(){
   overlays.forEach(paintPriceLabel);
   renderPriceLegend();
   var shown=overlays.filter(function(ol){return !ol.__hidden;}).length;
+  syncClusterMarkers();
   if(on)console.log('[면적 필터] '+afLabel()+' → '+shown+'/'+overlays.length+'개 단지');
   updateOverlay();
   updateAreaBadge(shown);
@@ -1300,9 +1322,12 @@ function applyAreaToMap(){
 function updateAreaBadge(shown){
   var el=document.getElementById('areaTag');
   if(!el)return;
-  if(!afActive()){el.style.display='none';return;}
+  if(!afActive()&&!ageActive()){el.style.display='none';return;}
   el.style.display='';
-  el.textContent='전용 '+afLabel()+' · 단지 '+shown+'/'+overlays.length;
+  var parts=[];
+  if(afActive())parts.push('전용 '+afLabel());
+  if(ageActive())parts.push('연식 '+ageLabel());
+  el.textContent=parts.join(' · ')+' · 단지 '+shown+'/'+overlays.length;
 }
 
 // ── 전용면적 범위 필터 (헤더) ──
@@ -1330,6 +1355,60 @@ function afLabel(){
   if(a.min&&a.max)return a.min+'~'+a.max+'㎡';
   return a.min ? a.min+'㎡~' : '~'+a.max+'㎡';
 }
+// ── 연식 필터 (상세 필터) ──
+// 단지 단위 필터. 조건에 맞지 않는 단지는 지도·색 눈금·전체선택·Excel에서 빠진다.
+// 연식 = 올해 − 건축년도 (예: 2026년에 2016년 준공 → 10년)
+function getAge(){
+  return {min:parseInt(document.getElementById('ageMin').value,10)||0,
+          max:parseInt(document.getElementById('ageMax').value,10)||0};
+}
+function ageActive(){var a=getAge();return !!(a.min||a.max);}
+function ageOf(c){
+  var y=parseInt(c&&c.buildYear,10);
+  return y>1900?(new Date().getFullYear()-y):null;
+}
+function ageOk(c){
+  if(!ageActive())return true;
+  var g=ageOf(c), a=getAge();
+  if(g===null)return false;              // 건축년도 모르면 필터가 걸렸을 때 제외
+  if(a.min&&g<a.min)return false;
+  if(a.max&&g>a.max)return false;
+  return true;
+}
+function ageLabel(){
+  var a=getAge();
+  if(!a.min&&!a.max)return '';
+  if(!a.min)return a.max+'년 이내';
+  if(!a.max)return a.min+'년 이상';
+  return a.min+'~'+a.max+'년';
+}
+function setAge(min,max){
+  document.getElementById('ageMin').value=min||'';
+  document.getElementById('ageMax').value=max||'';
+  onAgeChange();
+}
+function onAgeChange(){
+  markFilterDot();
+  applyAreaToMap();
+  // 숨겨진 단지는 선택에서도 뺀다 (Excel 대상이 화면과 어긋나지 않게)
+  if(typeof selectedKeys!=='undefined'&&selectedKeys.size){
+    [...selectedKeys].forEach(function(k){if(!ageOk(allComplexes[k]))selectedKeys.delete(k);});
+    if(typeof renderSelectBar==='function')renderSelectBar();
+  }
+}
+
+// 축소했을 때 보이는 원형 클러스터도 숨긴 단지를 빼고 센다
+var cxMarkers=[];
+function syncClusterMarkers(){
+  if(typeof clusterer==='undefined'||!clusterer||!cxMarkers.length)return;
+  var hidden={};
+  overlays.forEach(function(ol){if(ol.__hidden)hidden[ol.__key]=1;});
+  try{
+    clusterer.removeMarkers(cxMarkers);
+    clusterer.addMarkers(cxMarkers.filter(function(m){return !hidden[m.__key];}));
+  }catch(e){console.warn('[클러스터 갱신 실패] '+e.message);}
+}
+
 function setArea(min,max){
   document.getElementById('areaMin').value=min||'';
   document.getElementById('areaMax').value=max||'';
@@ -2600,6 +2679,7 @@ async function runAnalysis(){
   oftMks.forEach(m=>m.setMap(null));oftMks=[];
   overlays.forEach(o=>o.setMap(null));overlays=[];
   if(clusterer){clusterer.clear();clusterer=null;}
+  cxMarkers=[];
   allComplexes={};complexIndex=[];selectedKeys.clear();closePanel();closeDetail();hideCard();
   statCanceled=0;statFetched=0;statTruncated=[];statLot=null;statGeo=null;
   var _at=document.getElementById('areaTag');if(_at)_at.style.display='none';
@@ -2825,6 +2905,7 @@ async function runAnalysis(){
           new kakao.maps.Size(1,1)
         )
       });
+      mk.__key=key;
       kakao.maps.event.addListener(mk,'click',function(){openComplex(key);});
       allMarkers.push(mk);
       if(c.type==='아파트'){aptMks.push(mk);aptCnt++;}else{oftMks.push(mk);oftCnt++;}
@@ -2852,6 +2933,7 @@ async function runAnalysis(){
       ]
     });
 
+    cxMarkers=allMarkers;  // 필터로 숨긴 단지를 클러스터 숫자에서도 빼기 위해 보관
     applyAreaToMap();      // 면적 필터가 걸려 있으면 반영한 상태로 그린다
     updateOverlay();
     kakao.maps.event.addListener(map,'zoom_changed',updateOverlay);
@@ -2984,7 +3066,7 @@ function toggleSelect(key){
   renderSelectBar();
 }
 function selectAll(){
-  var all=Object.keys(allComplexes);
+  var all=Object.keys(allComplexes).filter(function(k){return ageOk(allComplexes[k]);});
   // 전체가 이미 선택돼 있으면 전체 해제로 동작
   if(all.length&&all.every(k=>selectedKeys.has(k)))selectedKeys.clear();
   else all.forEach(k=>selectedKeys.add(k));
@@ -3058,7 +3140,7 @@ async function exportExcel(){
     return {sup:s,py:s&&s.supply>0?s.supply/PYM:null,src:supplySrcLabel(s)};
   }
 
-  var keys=[...selectedKeys].filter(function(k){return allComplexes[k];})
+  var keys=[...selectedKeys].filter(function(k){return allComplexes[k]&&ageOk(allComplexes[k]);})
     .sort(function(a,b){return (allComplexes[a].dist||0)-(allComplexes[b].dist||0);});
 
   // ════════════════ 매매 상세 (단지 → 평형 → 거래) ════════════════
