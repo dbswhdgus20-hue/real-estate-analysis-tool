@@ -2481,6 +2481,13 @@ async function kaptBasic(code){
   var v={code:code,name:String(x.kaptName||''),sale:String(x.codeSaleNm||'').trim(),addr:String(x.kaptAddr||''),cnt:x.kaptdaCnt||x.hoCnt||''};
   lsSetT(KAPT_BASIC+code,v); return v;
 }
+// 두 단지명의 가장 긴 공통 부분 길이 (동 이름·'아파트' 같은 흔한 말은 빼고 비교)
+function commonLen(a,b){
+  var strip=function(x){return normHouseName(x).replace(/[가-힣]{1,3}동(?=\S)|아파트|마포|용산|서울/g,'');};
+  a=strip(a);b=strip(b);var best=0;
+  for(var i=0;i<a.length;i++)for(var j=i+best+1;j<=a.length;j++){if(b.indexOf(a.slice(i,j))!==-1)best=j-i;else break;}
+  return best;
+}
 function kaptNameHit(a,b){
   a=normHouseName(a);b=normHouseName(b);
   return !!a&&!!b&&a.length>=2&&b.length>=2&&(a===b||(a.length>=4&&b.indexOf(a)!==-1)||(b.length>=4&&a.indexOf(b)!==-1));
@@ -2537,15 +2544,31 @@ async function loadSaleTypes(){
         if(pick){c._kaptCode=pick.code;used[pick.code]=1;}
       }
       // ② 이름이 안 맞은 단지는 같은 법정동 K-apt 단지의 주소 지번으로 맞추기 (동당 최대 40곳)
+      //    한 지번에 분양 단지와 임대 단지가 함께 있는 경우가 있다(예: 대흥동 660 — 마포태영아파트 / 마포태영제2(임대)).
+      //    그래서 지번이 같은 후보를 모두 모은 뒤 ⓐ임대가 아닌 것 ⓑ이름이 더 닮은 것 ⓒ세대수가 많은 것 순으로 고른다.
       var rest=cs.filter(function(c){return !c._kaptCode&&c.jibunTxt;});
       if(rest.length){
         var pool=list.filter(function(x){return !used[x.code];}).slice(0,40);
-        for(var p=0;p<pool.length&&rest.some(function(c){return !c._kaptCode;});p++){
+        var byLot={};
+        for(var p=0;p<pool.length;p++){
           if(gen!==kaptGen)return;
           var b2=await kaptBasic(pool[p].code);
           var lk=lotKey(lotOfAddr(b2.addr));
-          rest.forEach(function(c){if(!c._kaptCode&&lk&&lk===lotKey(c.jibunTxt))c._kaptCode=pool[p].code;});
+          if(lk)(byLot[lk]=byLot[lk]||[]).push(b2);
+          if(rest.every(function(c){return byLot[lotKey(c.jibunTxt)];}))break;   // 모두 후보를 찾았으면 그만
         }
+        rest.forEach(function(c){
+          var cands=byLot[lotKey(c.jibunTxt)]; if(!cands||!cands.length)return;
+          var ourRent=/임대|행복주택/.test(c.name);
+          cands.sort(function(a,b){
+            var ra=(a.sale==='임대'||/임대|행복주택/.test(a.name))?1:0, rb=(b.sale==='임대'||/임대|행복주택/.test(b.name))?1:0;
+            if(!ourRent&&ra!==rb)return ra-rb;
+            var sa=commonLen(c.name,a.name), sb=commonLen(c.name,b.name);
+            if(sa!==sb)return sb-sa;
+            return (parseInt(b.cnt,10)||0)-(parseInt(a.cnt,10)||0);
+          });
+          c._kaptCode=cands[0].code;
+        });
       }
       // ③ 분양형태 읽기 (단지 하나가 실패해도 나머지는 계속)
       for(var j=0;j<cs.length;j++){
