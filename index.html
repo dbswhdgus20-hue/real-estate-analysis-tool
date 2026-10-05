@@ -2497,11 +2497,11 @@ function paintSaleOnLabel(c){
   if(!ol||!ol.__el)return;
   var nm=ol.__el.querySelector('.cl-name'); if(!nm)return;
   var tag=nm.querySelector('.cl-sale');
-  var show=c.saleType==='임대'||c.saleType==='혼합';
+  var show=c.saleType==='임대'; // 혼합은 라벨에 표시하지 않음(매매 실거래는 분양 세대만이라 평당가 영향 없음)
   if(!show){if(tag)tag.remove();return;}
   if(!tag){tag=document.createElement('span');tag.className='cl-sale';nm.insertBefore(tag,nm.firstChild);}
   tag.textContent=c.saleType;
-  tag.title=c.saleType==='혼합'?'분양·임대 세대가 함께 있는 단지 (K-apt)':'임대 단지 (K-apt)';
+  tag.title='임대 단지 (K-apt)';
 }
 function kaptKeyError(m){return /SERVICE.?KEY|NOT.?REGISTERED|SERVICE_ACCESS_DENIED|등록되지 않은|30 /i.test(String(m||''));}
 async function loadSaleTypes(){
