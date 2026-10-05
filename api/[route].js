@@ -46,6 +46,23 @@ const ROUTES = {
   //   sido→ cond[SUBSCRPT_AREA_CODE_NM::EQ]
   // 대괄호 이름을 그대로 받지 않는 이유: express(qs)는 대괄호를 중첩 객체로
   // 풀어버리고 Vercel은 평문으로 두어, 같은 요청이 두 곳에서 달리 보인다.
+  // K-apt(공동주택관리정보시스템) — 분양형태(분양/임대/혼합) 확인용
+  //   kapt-list : 법정동(10자리) 기준 단지 목록 → kaptCode·단지명
+  //   kapt-basic: 단지 기본정보 → codeSaleNm(분양형태)·kaptAddr·kaptdaCnt(세대수)
+  // 두 서비스 모두 공공데이터포털에서 별도 활용신청 필요 (개발계정 일 5,000건)
+  'kapt-list': {
+    // 서비스 버전이 바뀌면 옛 경로는 '12 서비스 없음'을 준다 → 최신부터 차례로 시도
+    paths: ['/1613000/AptListService4/getLegaldongAptList4', '/1613000/AptListService3/getLegaldongAptList3',
+            '/1613000/AptListService2/getLegaldongAptList'],
+    path: '/1613000/AptListService4/getLegaldongAptList4',
+    params: ['bjdCode'], cache: 'static', kapt: true, rows: 1000, minIntervalMs: 150,
+  },
+  'kapt-basic': {
+    paths: ['/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5', '/1613000/AptBasisInfoServiceV4/getAphusBassInfoV4',
+            '/1613000/AptBasisInfoServiceV3/getAphusBassInfoV3'],
+    path: '/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5',
+    params: ['kaptCode'], cache: 'static', kapt: true, rows: 1, minIntervalMs: 150,
+  },
   'bunyang': {
     host: 'odcloud',
     path: '/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail',
@@ -279,6 +296,56 @@ async function fetchCovered(spec, params, key, want) {
            partial: page < last, cover: coverCount(rows, want, page < last) };
 }
 
+/* K-apt 응답은 서비스·버전에 따라 JSON 또는 XML로 오고, 목록은 body.items(.item),
+   기본정보는 body.item 한 건으로 온다. 형태를 가리지 않고 항목 배열로 맞춘다. */
+const kaptPathOk = {};   // 라우트별로 실제 동작한 경로를 기억 (함수 인스턴스 수명 동안)
+async function fetchKapt(spec, params, key) {
+  const tries = kaptPathOk[spec.path] ? [kaptPathOk[spec.path]] : (spec.paths || [spec.path]);
+  let lastErr = null;
+  for (const path of tries) {
+    // 상류가 간헐적으로 '04 HTTP_ERROR'·타임아웃을 준다(실측 2026-10-05) → 같은 경로로 최대 3번
+    for (let i = 1; i <= 3; i++) {
+      try {
+        const out = await fetchKaptOnce(spec, path, params, key);
+        kaptPathOk[spec.path] = path;
+        return { ...out, path };
+      } catch (e) {
+        lastErr = e;
+        // '04 HTTP_ERROR'는 K-apt 쪽 일시 제한이라 바로 다시 부르면 더 오래 막힌다 → 화면 쪽에서 길게 쉬었다 재시도
+        const again = !/HTTP_ERROR/.test(String(e.message)) && (e.transient || e.name === 'TimeoutError' || e.name === 'AbortError'
+          || /fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e.message)));
+        if (again && i < 3) { await sleep(isRateLimited(e.message) ? 1500 * i : 400 * i); continue; }
+        break;
+      }
+    }
+    if (!/^12\b|NO_OPENAPI_SERVICE/.test(String(lastErr && lastErr.message))) throw lastErr;   // 경로 문제(12)일 때만 다음 버전 시도
+  }
+  throw lastErr;
+}
+async function fetchKaptOnce(spec, path, params, key) {
+  const qs = new URLSearchParams({ serviceKey: key, pageNo: '1', numOfRows: String(spec.rows || 100), ...params });
+  await throttle(spec);
+  const r = await fetch(`${BASE}${path}?${qs}`, { signal: AbortSignal.timeout(20000) });
+  const text = await r.text();
+  let j = null;
+  try { j = JSON.parse(text); } catch (e) { try { j = parser.parse(text); } catch (e2) { j = null; } }
+  if (!j) throw new UpstreamError(`K-apt 응답 해석 실패 (HTTP ${r.status}) ${text.slice(0, 120)}`);
+  const head = j?.response?.header || {};
+  const code = String(head.resultCode ?? j?.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnReasonCode ?? '');
+  if (code && !['000', '00', '0'].includes(code)) {
+    const msg = head.resultMsg ?? j?.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnAuthMsg ?? '';
+    const err = j?.OpenAPI_ServiceResponse?.cmmMsgHeader?.errMsg ?? '';
+    const full = `${code} ${msg} ${err}`.trim();
+    throw new UpstreamError(full, isTransient(full));
+  }
+  if (!j?.response && !j?.OpenAPI_ServiceResponse) throw new UpstreamError(`K-apt 응답 형식 이상 (HTTP ${r.status}) ${text.slice(0, 120)}`);
+  const body = j?.response?.body || {};
+  let it = body.items !== undefined ? (body.items?.item ?? body.items) : body.item;
+  if (!it || it === '') it = [];
+  if (!Array.isArray(it)) it = [it];
+  return { items: it, total: parseInt(body.totalCount ?? it.length, 10) || it.length };
+}
+
 /** 라우트 하나를 처리해 {status, body, headers}를 돌려준다 (프레임워크 무관) */
 async function handleRoute(routeName, query) {
   const key = process.env.DATA_GO_KR_KEY || process.env.DATA_SERVICE_KEY;
@@ -292,6 +359,14 @@ async function handleRoute(routeName, query) {
   catch (e) { return { status: 400, body: { ok: false, error: e.message } }; }
 
   try {
+    if (spec.kapt) {
+      const out = await fetchKapt(spec, params, key);
+      return {
+        status: 200,
+        headers: { 'Cache-Control': `public, s-maxage=${30 * 24 * 3600}, stale-while-revalidate=86400` },
+        body: { ok: true, ...out },
+      };
+    }
     // 청약홈은 JSON을 그대로 중계한다 (키만 서버에서 붙임)
     if (spec.json) {
       const mapped = {};
