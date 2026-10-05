@@ -2600,6 +2600,7 @@ async function loadSaleTypes(){
     }
   }
   if(gen!==kaptGen)return;
+  var ptx=document.getElementById('pTxt'); if(ptx&&/분양형태/.test(ptx.textContent))ptx.textContent='완료';
   if(saleActive())applyAreaToMap();
   console.log('[K-apt 분양형태] '+found+'/'+total+'개 단지 확인'+(failed?' · 실패 '+failed:'')+' · 호출 '+kaptCalls+'건');
 }
@@ -2616,7 +2617,7 @@ async function autoLedgers(){
   var list=Object.keys(allComplexes).map(function(k){return allComplexes[k];}).filter(function(c){
     return c.type==='아파트'&&c.ledgerKey&&!(c._ledger&&typeof c._ledger==='object')&&ledgerWant(c).length;
   }).sort(function(a,b){return (a.dist||0)-(b.dist||0);});
-  if(!list.length)return;
+  if(!list.length){var p0=document.getElementById('pTxt'); if(p0&&/대기|분양형태/.test(p0.textContent))p0.textContent='완료'; return;}
   var done=0,stopped='';
   for(var i=0;i<list.length;i++){
     if(gen!==ledgerGen)return;                       // 새 분석이 시작됨
