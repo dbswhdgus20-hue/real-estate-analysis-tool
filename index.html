@@ -1404,7 +1404,7 @@ function syncClusterMarkers(){
   var hidden={};
   overlays.forEach(function(ol){if(ol.__hidden)hidden[ol.__key]=1;});
   try{
-    clusterer.removeMarkers(cxMarkers);
+    clusterer.removeMarkers(cxMarkers.slice());
     clusterer.addMarkers(cxMarkers.filter(function(m){return !hidden[m.__key];}));
   }catch(e){console.warn('[클러스터 갱신 실패] '+e.message);}
 }
@@ -2933,7 +2933,9 @@ async function runAnalysis(){
       ]
     });
 
-    cxMarkers=allMarkers;  // 필터로 숨긴 단지를 클러스터 숫자에서도 빼기 위해 보관
+    // 필터로 숨긴 단지를 클러스터 숫자에서도 빼기 위해 보관. 클러스터러가 넘겨받은 배열을
+    // 그대로 쓰므로(removeMarkers가 그 배열을 비운다) 반드시 복사본을 둔다.
+    cxMarkers=allMarkers.slice();
     applyAreaToMap();      // 면적 필터가 걸려 있으면 반영한 상태로 그린다
     updateOverlay();
     kakao.maps.event.addListener(map,'zoom_changed',updateOverlay);
