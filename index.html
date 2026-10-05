@@ -1735,10 +1735,13 @@ async function fetchViaProxy(spec, params, fields, label){
   }
   statFetched+=j.items.length;
   if(j.pages>1)console.log('[페이징] '+label+': '+j.total+'건 · 페이지크기 '+j.pageSize+' · '+j.pages+'페이지 (서버 처리)');
+  if(/^ledger/.test(spec.route||''))ledgerPages+=(j.pages||1);
   // direct 모드와 동일한 형태로 맞춘다 (서버가 이미 골라 주지만 방어적으로)
-  return j.items.map(function(it){
+  var out=j.items.map(function(it){
     var o={};fields.forEach(function(f){o[f]=it[f]!=null?String(it[f]).trim():'';});return o;
   });
+  out.__meta={pages:j.pages,totalPages:j.totalPages,partial:j.partial};
+  return out;
 }
 
 // ── 2단계: 해제(취소)된 계약 제외 ──
@@ -2214,14 +2217,15 @@ function logLotCoverage(list){
 var LEDGER_BASE='https://apis.data.go.kr/1613000/BldRgstHubService/getBrExposPubuseAreaInfo';
 var LEDGER_KEY=PK;            // ※ 건축HUB 서비스는 공공데이터포털에서 별도 활용신청 필요
 var LEDGER_ON=true;           // 헤더 체크박스로 토글
-var LEDGER_CACHE='kirt.ledger.v1.';
+var LEDGER_CACHE='kirt.ledger.v2.';   // v2: 지하대피소 등 기타공용 분류 보강, 비주거 호 제외
 var LEDGER_TTL=180*864e5;     // 건축물대장은 거의 불변 — 180일
 var ledgerMem={},ledgerInflight={},ledgerKeyWarned=false;
-var ledgerCalls=0;   // 이 세션에서 건축물대장을 몇 번 불렀는지 (일일 한도 진단용)
+var ledgerCalls=0;
+var ledgerPages=0;   // 대장 API 실제 페이지 호출 수 (공공데이터 일일 한도 10,000건 관리용)   // 이 세션에서 건축물대장을 몇 번 불렀는지 (일일 한도 진단용)
 
 // 공용부 용도 분류 키워드
 var RES_PUBUSE=/계단|복도|승강|엘리베이|E\.?V|홀|전실|현관|피난|부속실|공용통로/i;
-var ETC_PUBUSE=/주차|기계|전기|발전|변전|펌프|물탱크|저수조|정화조|오수|관리사무|경비|방재|통신|보일러|공조|창고|자전거|재활용|쓰레기|폐기물|커뮤니티|주민공동|노인정|경로당|어린이집|보육|도서|헬스|휴게|상가|근린|판매|사무/i;
+var ETC_PUBUSE=/대피소|방공|기전|방충|열교환|저류조|주차|기계|전기|발전|변전|펌프|물탱크|저수조|정화조|오수|관리사무|경비|방재|통신|보일러|공조|창고|자전거|재활용|쓰레기|폐기물|커뮤니티|주민공동|노인정|경로당|어린이집|보육|도서|헬스|휴게|상가|근린|판매|사무/i;
 
 // 한 행이 전유 / 주거공용 / 기타공용 중 무엇인가
 function classifyPubuse(r){
@@ -2251,13 +2255,18 @@ function buildAreaTable(rows){
     var cls=classifyPubuse(r);
     if(!cls){skipped++;return;}
     var k=(r.dongNm||'')+'|'+(r.hoNm||'');
-    if(!ho[k])ho[k]={ex:0,res:0,etc:0};
+    if(!ho[k])ho[k]={ex:0,res:0,etc:0,nonres:false};
     ho[k][cls]+=a;
+    // 전유 용도가 주거가 아니면(근린생활시설·체육시설 등) 표에서 뺀다 — 같은 전용면적의 상가가 섞이는 것 방지
+    if(cls==='ex'){
+      var pu=((r.mainPurpsCdNm||'')+' '+(r.etcPurps||'')).trim();
+      if(pu&&!/아파트|공동주택|주택|오피스텔|다세대|연립|도시형/.test(pu))ho[k].nonres=true;
+    }
   });
   var bucket={};
   Object.keys(ho).forEach(function(k){
     var h=ho[k];
-    if(h.ex<=0)return;                    // 전유면적 없는 행(공용 전용 동 등)은 제외
+    if(h.ex<=0||h.nonres)return;          // 전유면적 없는 행, 비주거 호는 제외
     var bk=h.ex.toFixed(2);
     if(!bucket[bk])bucket[bk]={ex:parseFloat(bk),sup:[],con:[]};
     bucket[bk].sup.push(h.ex+h.res);
@@ -2282,31 +2291,62 @@ function matchSupply(table,v){
   if(best.supply<=best.ex)return null;    // 공급면적이 전용면적 이하면 이상치
   return {supply:best.supply,contract:best.contract,ex:best.ex,n:best.n,diff:bd,loose:bd>tol};
 }
+// 이 단지에서 공급면적이 필요한 전용면적 목록 (매매·전월세 모두)
+function ledgerWant(c){
+  var set={};
+  (c.tradesAll||c.trades||[]).concat(c.rents||[]).forEach(function(d){
+    var v=parseFloat(d.excluUseAr||'0'); if(v>0)set[v.toFixed(2)]=1;
+  });
+  return Object.keys(set).map(Number).sort(function(x,y){return x-y;});
+}
+// 표에 정확히(허용오차 안) 있는 타입인가
+function ledgerHas(o,v){
+  if(!o||!o.table)return false;
+  // 서버와 같은 허용오차(0.015㎡). 84.96과 84.99처럼 소수점만 다른 타입은 공급면적이 다르므로 따로 본다
+  return o.table.some(function(t){return Math.abs(t.ex-v)<=0.015&&t.supply>t.ex;});
+}
+function mergeTables(a,b){
+  var m={};(a||[]).concat(b||[]).forEach(function(t){var k=t.ex.toFixed(2);if(!m[k]||t.n>m[k].n)m[k]=t;});
+  return Object.keys(m).map(function(k){return m[k];}).sort(function(x,y){return x.ex-y.ex;});
+}
 // 단지 하나의 대장을 받아 면적표로 압축 (캐시에는 압축본만 저장)
+// 거래된 전용면적 타입만 '필요한 만큼' 받는다(서버가 앞 페이지부터 받다가 타입마다 호 2개가 모이면 멈춤).
+// 캐시에 없는 타입이 생기면 그 타입만 추가로 받아 표에 합친다.
 async function loadLedger(c){
   if(!c.ledgerKey)return null;
   var ck=LEDGER_CACHE+[c.sigunguCd,c.bjdongCd,c.bun,c.ji].join('-');
-  if(ledgerMem[ck])return ledgerMem[ck];
-  try{
-    var raw=localStorage.getItem(ck);
-    if(raw){
-      var o=JSON.parse(raw);
-      if(o&&o.t&&(Date.now()-o.t)<LEDGER_TTL){ledgerMem[ck]=o;return o;}
-    }
-  }catch(e){/* 사생활 보호 모드 등 — 캐시 없이 진행 */}
+  var want=ledgerWant(c);
+  var cached=ledgerMem[ck]||null;
+  if(!cached){
+    try{
+      var raw=localStorage.getItem(ck);
+      if(raw){
+        var o0=JSON.parse(raw);
+        if(o0&&o0.t&&(Date.now()-o0.t)<LEDGER_TTL){cached=o0;ledgerMem[ck]=o0;}
+      }
+    }catch(e){/* 사생활 보호 모드 등 — 캐시 없이 진행 */}
+  }
+  // 이미 찾아봤는데 대장에 없던 타입(tried)은 다시 부르지 않는다
+  var missing=want.filter(function(v){return !ledgerHas(cached,v)&&!(cached&&cached.tried&&cached.tried.indexOf(v.toFixed(2))!==-1);});
+  if(cached&&(!missing.length||cached.full))return cached;
   if(ledgerInflight[ck])return ledgerInflight[ck];
   ledgerInflight[ck]=(async function(){
+    var p={sigunguCd:c.sigunguCd, bjdongCd:c.bjdongCd, bun:c.bun, ji:c.ji};
+    if(missing.length)p.want=missing.map(function(v){return v.toFixed(2);}).join(',');
     // platGbCd는 대장과 불일치가 잦아 생략한다 (누락보다 과다조회가 낫다)
-    var rows=await fetchAllItems(API_SPECS.ledger,
-      {sigunguCd:c.sigunguCd, bjdongCd:c.bjdongCd, bun:c.bun, ji:c.ji},
+    var rows=await fetchAllItems(API_SPECS.ledger, p,
       ['dongNm','hoNm','exposPubuseGbCdNm','mainAtchGbCdNm','flrGbCdNm','etcPurps','mainPurpsCdNm','area'],
       '대장 '+c.name);
     if(rows.__apiError)throw new Error(rows.__apiError);
     var built=buildAreaTable(rows);
-    var o={t:Date.now(),nm:c.name,rows:rows.length,ho:built.hoCount,table:built.table};
+    var m=rows.__meta||{};
+    var o={t:Date.now(),nm:c.name,rows:(cached?cached.rows:0)+rows.length,ho:(cached?cached.ho:0)+built.hoCount,
+           table:mergeTables(cached&&cached.table,built.table),
+           full:m.partial===false&&!p.want,
+           tried:((cached&&cached.tried)||[]).concat(missing.map(function(v){return v.toFixed(2);}))};
     ledgerMem[ck]=o;
     try{localStorage.setItem(ck,JSON.stringify(o));}catch(e){console.warn('[대장 캐시 저장 실패] '+e.message);}
-    console.log('[대장] '+c.name+' '+c.jibunTxt+' → '+rows.length+'행 / '+built.hoCount+'호 / 면적 '+built.table.length+'종',built.table);
+    console.log('[대장] '+c.name+' '+c.jibunTxt+' → '+rows.length+'행 / '+built.hoCount+'호'+(m.pages?' / '+m.pages+(m.totalPages?'/'+m.totalPages:'')+'페이지':'')+' / 면적 '+o.table.length+'종',o.table);
     return o;
   })();
   try{return await ledgerInflight[ck];}finally{delete ledgerInflight[ck];}
@@ -2366,6 +2406,42 @@ function supplySrcLabel(s){
   return s.src==='ledger'?(s.loose?'대장(근사)':'대장'):'추정';
 }
 // 선택 단지 전부의 대장을 미리 받아둔다 (Excel 내보내기 직전)
+// ── 분석 후 자동 실측 ──
+// 반경 안 아파트의 건축물대장을 사업지에서 가까운 순서로 하나씩 받아 라벨을 실측 평당가로 바꾼다.
+// 한 단지씩(동시에 여러 단지를 부르면 대장 API 초당 제한에 걸린다), 새 분석을 시작하면 중단.
+// 공공데이터 일일 한도(10,000건)를 넘지 않도록 이 화면에서 쓴 대장 페이지 수가 상한을 넘으면 멈춘다.
+var LEDGER_PAGE_CAP=3000;
+var ledgerGen=0;
+async function autoLedgers(){
+  if(!LEDGER_ON)return;
+  var gen=++ledgerGen;
+  var list=Object.keys(allComplexes).map(function(k){return allComplexes[k];}).filter(function(c){
+    return c.type==='아파트'&&c.ledgerKey&&!(c._ledger&&typeof c._ledger==='object')&&ledgerWant(c).length;
+  }).sort(function(a,b){return (a.dist||0)-(b.dist||0);});
+  if(!list.length)return;
+  var done=0,stopped='';
+  for(var i=0;i<list.length;i++){
+    if(gen!==ledgerGen)return;                       // 새 분석이 시작됨
+    if(ledgerPages>LEDGER_PAGE_CAP){stopped='호출 상한';break;}
+    var c=list[i];
+    try{
+      var o=await loadLedger(c);
+      if(gen!==ledgerGen)return;
+      if(!(c._ledger&&typeof c._ledger==='object'))c._ledger=(o&&o.table&&o.table.length)?o:'empty';
+      refreshPriceFor(c);
+      if(curComplex===c)refreshComplexViews();
+    }catch(e){
+      c._ledger='error';c._ledgerMsg=e.message;
+      if(/^22\b|^23\b|LIMITED_NUMBER/.test(String(e.message))){stopped='공공데이터 호출 제한';break;}
+    }
+    done++;
+    var pt=document.getElementById('pTxt'); if(pt)pt.textContent='공급면적 실측 '+done+'/'+list.length;
+  }
+  if(gen!==ledgerGen)return;
+  applyAreaToMap();   // 실측값으로 색 구간을 다시 잡는다
+  setProg(100, stopped?'공급면적 실측 '+done+'/'+list.length+' (중단: '+stopped+')':'완료');
+  console.log('[자동 실측] '+done+'/'+list.length+'개 단지 · 대장 페이지 누적 '+ledgerPages+(stopped?' · 중단: '+stopped:''));
+}
 async function prefetchLedgers(keys){
   if(!LEDGER_ON)return;
   var list=keys.map(function(k){return allComplexes[k];}).filter(function(c){
@@ -2376,6 +2452,7 @@ async function prefetchLedgers(keys){
     try{
       var o=await loadLedger(list[i]);
       list[i]._ledger=(o&&o.table&&o.table.length)?o:'empty';
+      refreshPriceFor(list[i]);
     }catch(e){list[i]._ledger='error';list[i]._ledgerMsg=e.message;}
   }
 }
@@ -2707,6 +2784,7 @@ async function runAnalysis(){
   overlays.forEach(o=>o.setMap(null));overlays=[];
   if(clusterer){clusterer.clear();clusterer=null;}
   cxMarkers=[];
+  ledgerGen++;           // 진행 중인 자동 실측 중단
   allComplexes={};complexIndex=[];selectedKeys.clear();closePanel();closeDetail();hideCard();
   statCanceled=0;statFetched=0;statTruncated=[];statLot=null;statGeo=null;
   var _at=document.getElementById('areaTag');if(_at)_at.style.display='none';
@@ -2992,6 +3070,7 @@ async function runAnalysis(){
     // 분양단지 자동 조회
     setProg(100,'분양단지 조회 중...');
     loadBunyang();
+    autoLedgers();         // 반경 안 아파트의 공급면적을 백그라운드에서 실측으로 바꾼다
     document.getElementById('selectBar').style.display='block';
     renderSelectBar();
   }catch(e){setStatus('err','오류: '+e.message);console.error(e);}
