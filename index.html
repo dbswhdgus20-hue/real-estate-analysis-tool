@@ -625,6 +625,9 @@ tr:last-child td{border-bottom:none}
     <label class="h-chk" title="신고 후 취소된 계약을 평균가·최고가 집계에서 제외합니다.">
       <input type="checkbox" id="exCanceled" checked onchange="toggleCanceled(this.checked)"/>해제거래 제외
     </label>
+    <label class="h-chk" title="중개사를 거치지 않은 직거래(가족 간 거래 등 시세와 동떨어질 수 있음)를 평균가·평당가·지도 색·거래표·Excel에서 제외합니다. 다시 분석하지 않아도 바로 반영됩니다.">
+      <input type="checkbox" id="exDirect" onchange="toggleDirect(this.checked)"/>직거래 제외
+    </label>
     <label class="h-chk" title="상세 패널을 연 단지의 건축물대장을 조회해 공급면적을 실측합니다.">
       <input type="checkbox" id="ledgerOn" checked onchange="toggleLedger(this.checked)"/>건축물대장 공급면적
     </label>
@@ -826,6 +829,7 @@ var SEQ=['#E9F0F8','#B5CDE9','#6C9BD2','#41548B'];
 var PAGE_SIZE=1000;         // 요청 페이지 크기 (서버가 깎으면 응답값을 따른다)
 var MAX_ROWS=40000;         // 안전장치: 호출단위당 최대 행 수
 var PAGE_CONCURRENCY=4;     // 한 호출단위 안에서 페이지를 동시에 받는 수
+var EXCLUDE_DIRECT=false;    // 직거래 제외 (헤더에서 토글, 수집은 그대로 두고 집계에서만 뺀다)
 var EXCLUDE_CANCELED=true;  // 2단계: 해제(취소)된 계약을 집계에서 제외 (헤더에서 토글)
 var statCanceled=0;         // 제외된 해제거래 수
 var statFetched=0;          // 실제 수집 행 수
@@ -1072,7 +1076,7 @@ function markFilterDot(){
   var btn=document.getElementById('moreBtn'); if(!btn)return;
   var on=afActive()||ageActive()
     ||!!document.getElementById('priceMin').value||!!document.getElementById('priceMax').value
-    ||!document.getElementById('exCanceled').checked||!document.getElementById('ledgerOn').checked;
+    ||!document.getElementById('exCanceled').checked||document.getElementById('exDirect').checked||!document.getElementById('ledgerOn').checked;
   var dot=btn.querySelector('.dot');
   if(on&&!dot){var d=document.createElement('span');d.className='dot';btn.appendChild(d);}
   if(!on&&dot)dot.remove();
@@ -2381,6 +2385,29 @@ function toggleCanceled(on){
     ? '해제거래 제외 — 다시 분석해야 집계에 반영됨'
     : '해제거래 포함 — 취소된 계약이 평균가에 섞임. 다시 분석해야 반영됨');
 }
+// ── 직거래 제외 ──
+// 수집한 전체 매매(tradesAll)는 그대로 두고, 화면·집계·Excel이 쓰는 trades만 다시 거른다.
+// 그래서 체크를 바꿔도 다시 분석할 필요가 없다.
+function isDirectDeal(d){return String(d&&d.dealingGbn||'').trim()==='직거래';}
+function filterDirect(rows){return EXCLUDE_DIRECT?rows.filter(function(d){return !isDirectDeal(d);}):rows;}
+function applyDirectToAll(){
+  var removed=0,total=0;
+  Object.keys(allComplexes).forEach(function(k){
+    var c=allComplexes[k]; if(!c.tradesAll)c.tradesAll=c.trades;
+    c.trades=filterDirect(c.tradesAll);
+    total+=c.tradesAll.length; removed+=c.tradesAll.length-c.trades.length;
+  });
+  return {removed:removed,total:total};
+}
+function toggleDirect(on){
+  EXCLUDE_DIRECT=!!on;
+  var r=applyDirectToAll();
+  if(typeof onAreaChange==='function')onAreaChange();   // 지도 색·라벨·열린 패널을 함께 갱신
+  else markFilterDot();
+  if(Object.keys(allComplexes).length)
+    setStatus('info', on?'직거래 제외 — 매매 '+r.total.toLocaleString()+'건 중 직거래 '+r.removed.toLocaleString()+'건을 집계에서 뺌'
+                        :'직거래 포함 — 모든 매매를 집계');
+}
 function toggleLedger(on){
   LEDGER_ON=!!on;markFilterDot();
   if(!curComplex)return;
@@ -2707,13 +2734,13 @@ async function runAnalysis(){
     //  · 도로명주소 필드는 아파트에만 있고, 전월세는 태그가 전부 소문자(roadnm…)
     //  · 오피스텔엔 대신 sggNm(구 이름)이 있어 지번 주소를 조립할 수 있음
     {k:'aptTrade',  on:type!=='oft', bucket:'trade', t:'아파트',   nm:'aptNm',  label:'아파트매매',
-     fields:['aptNm','umdNm','dealAmount','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','sggCd','umdCd','bonbun','bubun','jibun','aptSeq',
+     fields:['aptNm','umdNm','dealAmount','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','dealingGbn','sggCd','umdCd','bonbun','bubun','jibun','aptSeq',
              'roadNm','roadNmBonbun','roadNmBubun','roadNmSggCd','aptDong']},
     {k:'aptRent',   on:type!=='oft', bucket:'rent',  t:'아파트',   nm:'aptNm',  label:'아파트전월세',
      fields:['aptNm','umdNm','deposit','monthlyRent','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','sggCd','umdCd','bonbun','bubun','jibun','aptSeq',
              'roadnm','roadnmbonbun','roadnmbubun','roadnmsggcd']},
     {k:'offiTrade', on:type!=='apt', bucket:'trade', t:'오피스텔', nm:'offiNm', label:'오피스텔매매',
-     fields:['offiNm','umdNm','dealAmount','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','sggCd','sggNm','umdCd','bonbun','bubun','jibun','aptSeq']},
+     fields:['offiNm','umdNm','dealAmount','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','dealingGbn','sggCd','sggNm','umdCd','bonbun','bubun','jibun','aptSeq']},
     {k:'offiRent',  on:type!=='apt', bucket:'rent',  t:'오피스텔', nm:'offiNm', label:'오피스텔전월세',
      fields:['offiNm','umdNm','deposit','monthlyRent','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','sggCd','sggNm','umdCd','bonbun','bubun','jibun','aptSeq']}
   ].filter(function(j){return j.on;});
@@ -2788,6 +2815,8 @@ async function runAnalysis(){
     fixNames(cMap);
     var mergedOrphans=mergeOrphans(cMap);
     if(mergedOrphans)console.log('[단지 병합] 고유번호가 빠진 거래 '+mergedOrphans+'덩어리를 같은 이름의 단지에 합침');
+    // 직거래 제외: 원본은 tradesAll에 보관하고 trades만 거른다
+    Object.keys(cMap).forEach(function(k){var c=cMap[k];c.tradesAll=c.trades;c.trades=filterDirect(c.tradesAll);});
     var seqKeyed=Object.keys(cMap).filter(function(k){return k.charAt(0)==='#';}).length;
     console.log('[단지 집계] '+Object.keys(cMap).length+'개 단지 (고유번호 기준 '+seqKeyed+'개)');
 
@@ -3090,7 +3119,8 @@ async function exportExcel(){
   var ymd=now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
   var ymdDot=ymd.slice(0,4)+'.'+ymd.slice(4,6)+'.'+ymd.slice(6);
   var rText=selR>=1000?(selR/1000)+'km':selR+'m';
-  var period=getYm('start').slice(0,4)+'.'+getYm('start').slice(4)+' ~ '+getYm('end').slice(0,4)+'.'+getYm('end').slice(4);
+  var period=getYm('start').slice(0,4)+'.'+getYm('start').slice(4)+' ~ '+getYm('end').slice(0,4)+'.'+getYm('end').slice(4)
+    +' · '+(EXCLUDE_DIRECT?'직거래 제외':'직거래 포함')+' · '+(EXCLUDE_CANCELED?'해제거래 제외':'해제거래 포함');
   var PYM=3.3058;
   var K=function(man){return (parseInt(String(man||'0').replace(/[^0-9]/g,''))||0)*10;};   // 만원 → 천원
   var A=function(r,c){return XLSX.utils.encode_cell({r:r,c:c});};
@@ -3152,7 +3182,7 @@ async function exportExcel(){
   T.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
   T.push(['단위: 천원 · 평당가 = 거래금액 ÷ 기준면적(평) — 아파트는 공급면적, 오피스텔은 전용면적 · 공급면적은 건축물대장 실측(없으면 건축년도별 전용률로 추정)']);
   T.push([]);
-  T.push(['단지명','유형','평형','거래일','동','층','전용면적(㎡)','공급면적(㎡)','기준면적(평)','거래금액(천원)','평당가(천원/평)','면적 출처']);
+  T.push(['단지명','유형','평형','거래일','동','층','전용면적(㎡)','공급면적(㎡)','기준면적(평)','거래금액(천원)','평당가(천원/평)','면적 출처','거래유형']);
   // 열: A단지 B유형 C평형 D거래일 E동 F층 G전용 H공급 I기준평 J거래금액 K평당가 L출처
   var tradeRef={};   // 요약 시트가 참조할 소계 위치
   keys.forEach(function(key){
@@ -3161,7 +3191,7 @@ async function exportExcel(){
     if(!groups.length)return;
     var hr=T.length;
     T.push(['■ '+c.name+'  ('+c.type+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.buildYear||'-')+'년 · 사업지 '+distTxt(c)+')']);
-    tm.push({s:{r:hr,c:0},e:{r:hr,c:11}});
+    tm.push({s:{r:hr,c:0},e:{r:hr,c:12}});
     var allJ=[],allK=[],ranges=[],gRef=[];
     groups.forEach(function(g){
       var s=T.length, js=[], ks=[], pys=[];
@@ -3172,7 +3202,8 @@ async function exportExcel(){
         if(amt)js.push(amt); if(ppy)ks.push(ppy); if(py)pys.push(py);
         T.push([c.name,c.type,g.label,dt(d),d.aptDong||'',d.floor?parseInt(d.floor):'',
           ar, b.sup?b.sup.supply:(c.type==='오피스텔'?'':null), py,
-          amt||null, py&&amt?{v:ppy,f:'IF(I'+(r+1)+'>0,ROUND(J'+(r+1)+'/I'+(r+1)+',0),"")',z:NUM}:null, b.src]);
+          amt||null, py&&amt?{v:ppy,f:'IF(I'+(r+1)+'>0,ROUND(J'+(r+1)+'/I'+(r+1)+',0),"")',z:NUM}:null, b.src,
+          isDirectDeal(d)?'직거래':(d.dealingGbn?'중개거래':'')]);
       });
       var e=T.length-1, rr=T.length;
       ranges.push([s,e]); allJ=allJ.concat(js); allK=allK.concat(ks);
@@ -3192,7 +3223,7 @@ async function exportExcel(){
     T.push([]);
     tradeRef[key]={groups:gRef,total:tr,cnt:allJ.length,j:allJ,k:allK,ranges:ranges,rg:rg};
   });
-  var wsT=toSheet(T,{6:AREA,7:AREA,8:PY,9:NUM,10:NUM},[24,8,20,11,7,5,11,11,11,14,14,10],[{s:{r:0,c:0},e:{r:0,c:11}},{s:{r:1,c:0},e:{r:1,c:11}},{s:{r:2,c:0},e:{r:2,c:11}}].concat(tm));
+  var wsT=toSheet(T,{6:AREA,7:AREA,8:PY,9:NUM,10:NUM},[24,8,20,11,7,5,11,11,11,14,14,10,9],[{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}},{s:{r:2,c:0},e:{r:2,c:12}}].concat(tm));
 
   // ════════════════ 단지·평형 요약 (매매 상세의 평균을 그대로 참조) ════════════════
   var S=[], sm=[];
@@ -4084,7 +4115,7 @@ function renderTable(){
       '<th>거래일</th><th>유형</th><th>타입</th>'+
       '<th class="r">전용㎡</th><th class="r">전용평</th>'+
       '<th class="r">공급㎡</th><th class="r">공급평</th>'+
-      '<th>층</th><th class="r">거래금액(만)</th><th class="r">전용평당(만)</th>'+
+      '<th>층</th><th>거래</th><th class="r">거래금액(만)</th><th class="r">전용평당(만)</th>'+
       '</tr></thead><tbody>'+
       sorted.map(function(d){
         var amt=parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;
@@ -4102,6 +4133,7 @@ function renderTable(){
           '<td class="r">'+(sup?sup.supply:'-')+'</td>'+
           '<td class="r">'+(sup?sup.supplyPy:'-')+'</td>'+
           '<td>'+d.floor+'층</td>'+
+          '<td>'+(isDirectDeal(d)?'<span class="badge b-warn" title="중개사를 거치지 않은 거래">직거래</span>':(d.dealingGbn?'<span style="color:var(--ui-ink-3);font-size:10.5px">중개</span>':'-'))+'</td>'+
           '<td class="r" style="font-weight:700;color:#41548B">'+fmt(amt)+'</td>'+
           '<td class="r">'+(py?fmt(py):'-')+'</td>'+
           '</tr>';
