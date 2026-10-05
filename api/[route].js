@@ -230,6 +230,55 @@ async function fetchAll(spec, params, key) {
   return { items: rows, total, truncated: rows.length < total, pageSize: size, pages: last };
 }
 
+/* ── 건축물대장 '필요한 만큼만' 받기 ──
+   대단지 전유공용면적은 수십~백수십 페이지인데, 공급면적을 알려면 거래된 전용면적 타입마다
+   호 몇 개만 있으면 된다. 실측(2026-10-05, 래미안마포리버웰 41페이지): 거래된 3개 타입이
+   모두 3페이지 안에 나왔다. 그래서 want(전용면적 목록)를 받으면 타입마다 온전한 호가
+   COVER_MIN개 이상 모일 때까지만 앞에서부터 받는다. 못 채우면 끝까지 받는다(기존과 동일). */
+const COVER_MIN = 2;      // 타입마다 필요한 호 수
+const COVER_BATCH = 2;    // 한 번에 더 받을 페이지 수 (대장 동시 호출 수와 맞춤)
+const COVER_TOL = 0.015;  // 전용면적 일치 허용오차(㎡) — 실거래는 소수 2~3자리, 대장은 2자리
+function parseWant(v) {
+  if (v === undefined || v === '') return null;
+  const w = String(v);
+  if (!/^[\d.,]{1,600}$/.test(w)) return 'bad';
+  const out = [...new Set(w.split(',').map(Number).filter((x) => x > 0 && x < 2000))].slice(0, 40);
+  return out.length ? out : null;
+}
+function coverCount(rows, want, dropLast) {
+  const ho = new Map(); let lastKey = null;
+  for (const r of rows) {
+    const k = (r.dongNm || '') + '|' + (r.hoNm || '');
+    lastKey = k;
+    if (String(r.exposPubuseGbCdNm || '').trim().startsWith('전유')) {
+      const a = parseFloat(r.area);
+      if (a > 0) ho.set(k, (ho.get(k) || 0) + a);
+    }
+  }
+  if (dropLast && lastKey) ho.delete(lastKey);   // 다음 페이지로 이어질 수 있는 마지막 호는 뺀다
+  const cnt = want.map(() => 0);
+  for (const ex of ho.values()) want.forEach((w, i) => { if (Math.abs(ex - w) <= COVER_TOL) cnt[i]++; });
+  return cnt;
+}
+async function fetchCovered(spec, params, key, want) {
+  const want0 = spec.pageSize || PAGE_SIZE;
+  const first = await fetchPageRetry(spec, params, 1, want0, key);
+  let rows = itemsOf(first);
+  const total = parseInt(first?.response?.body?.totalCount ?? rows.length, 10) || 0;
+  const size = parseInt(first?.response?.body?.numOfRows ?? want0, 10) || want0;
+  const last = Math.min(size ? Math.ceil(total / size) : 1, Math.max(1, Math.ceil(MAX_ROWS / size)));
+  let page = 1;
+  while (page < last && !coverCount(rows, want, true).every((n) => n >= COVER_MIN)) {
+    const nums = [];
+    for (let n = page + 1; n <= Math.min(last, page + COVER_BATCH); n++) nums.push(n);
+    const got = await Promise.all(nums.map((n) => fetchPageRetry(spec, params, n, size, key).then(itemsOf)));
+    got.forEach((g) => { rows = rows.concat(g); });
+    page = nums[nums.length - 1];
+  }
+  return { items: rows, total, truncated: false, pageSize: size, pages: page, totalPages: last,
+           partial: page < last, cover: coverCount(rows, want, page < last) };
+}
+
 /** 라우트 하나를 처리해 {status, body, headers}를 돌려준다 (프레임워크 무관) */
 async function handleRoute(routeName, query) {
   const key = process.env.DATA_GO_KR_KEY || process.env.DATA_SERVICE_KEY;
@@ -259,7 +308,9 @@ async function handleRoute(routeName, query) {
         body: j,
       };
     }
-    const out = await fetchAll(spec, params, key);
+    const want = routeName === 'ledger-area' ? parseWant(query.want) : null;
+    if (want === 'bad') return { status: 400, body: { ok: false, error: '파라미터 형식 오류: want' } };
+    const out = want ? await fetchCovered(spec, params, key, want) : await fetchAll(spec, params, key);
     const age = maxAge(spec.cache, params);
     return {
       status: 200,
