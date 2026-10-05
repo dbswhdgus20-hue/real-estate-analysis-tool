@@ -311,8 +311,9 @@ async function fetchKapt(spec, params, key) {
         return { ...out, path };
       } catch (e) {
         lastErr = e;
-        const again = e.transient || isRateLimited(e.message) || e.name === 'TimeoutError' || e.name === 'AbortError'
-          || /fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e.message));
+        // '04 HTTP_ERROR'는 K-apt 쪽 일시 제한이라 바로 다시 부르면 더 오래 막힌다 → 화면 쪽에서 길게 쉬었다 재시도
+        const again = !/HTTP_ERROR/.test(String(e.message)) && (e.transient || e.name === 'TimeoutError' || e.name === 'AbortError'
+          || /fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e.message)));
         if (again && i < 3) { await sleep(isRateLimited(e.message) ? 1500 * i : 400 * i); continue; }
         break;
       }

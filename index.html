@@ -2445,12 +2445,28 @@ var KAPT_TTL=30*864e5, KAPT_LIST='kirt.kapt.list.v1.', KAPT_BASIC='kirt.kapt.bas
 var kaptGen=0, kaptCalls=0, kaptBlocked='';
 function lsGetT(k,ttl){try{var r=localStorage.getItem(k);if(!r)return null;var o=JSON.parse(r);return (o&&o.t&&Date.now()-o.t<ttl)?o.v:null;}catch(e){return null;}}
 function lsSetT(k,v){try{localStorage.setItem(k,JSON.stringify({t:Date.now(),v:v}));}catch(e){}}
+// K-apt는 짧은 시간에 15~20건쯤 부르면 한동안 '04 HTTP_ERROR'를 돌려준다(실측 2026-10-05, 약 40초 뒤 회복).
+// 그래서 호출 간격을 두고, 막히면 15초 → 30초 쉬었다가 같은 요청을 다시 한다.
+var KAPT_GAP=400, kaptLast=0;
 async function kaptGet(route,params){
-  kaptCalls++;
-  var r=await fetch(PROXY_BASE+'/'+route+'?'+qs(params),{cache:'default'});
-  var j=null;try{j=await r.json();}catch(e){}
-  if(!r.ok||!j||j.ok!==true)throw new Error((j&&j.error)||('HTTP '+r.status));
-  return j.items||[];
+  var msg='';
+  for(var attempt=0;attempt<3;attempt++){
+    var wait=Math.max(0,kaptLast+KAPT_GAP-Date.now());
+    if(wait)await sleepMs(wait);
+    kaptLast=Date.now();
+    kaptCalls++;
+    var r=await fetch(PROXY_BASE+'/'+route+'?'+qs(params),{cache:'default'});
+    var j=null;try{j=await r.json();}catch(e){}
+    if(r.ok&&j&&j.ok===true)return j.items||[];
+    msg=(j&&j.error)||('HTTP '+r.status);
+    if(attempt<2&&/HTTP_ERROR|^04\b|LIMITED_NUMBER|HTTP 50/.test(msg)){
+      var pt=document.getElementById('pTxt'); if(pt&&/완료|분양형태/.test(pt.textContent))pt.textContent='분양형태 확인 대기 중 (공공데이터 일시 제한)';
+      await sleepMs(attempt===0?15000:30000);
+      continue;
+    }
+    break;
+  }
+  throw new Error(msg);
 }
 async function kaptList(bjd){
   var c=lsGetT(KAPT_LIST+bjd,KAPT_TTL); if(c)return c;
@@ -3230,8 +3246,11 @@ async function runAnalysis(){
     // 분양단지 자동 조회
     setProg(100,'분양단지 조회 중...');
     loadBunyang();
-    autoLedgers();         // 반경 안 아파트의 공급면적을 백그라운드에서 실측으로 바꾼다
-    loadSaleTypes();       // K-apt 분양형태(분양/임대/혼합)를 받아 라벨에 표시
+    // K-apt 분양형태 → 건축물대장 자동 실측 순서로 (동시에 부르면 공공데이터 호출 제한에 걸리기 쉽다)
+    (async function(){
+      try{await loadSaleTypes();}catch(e){console.warn('[K-apt 분양형태] '+e.message);}
+      autoLedgers();
+    })();
     document.getElementById('selectBar').style.display='block';
     renderSelectBar();
   }catch(e){setStatus('err','오류: '+e.message);console.error(e);}
