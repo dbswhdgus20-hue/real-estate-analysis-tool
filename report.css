@@ -48,6 +48,15 @@
 .rpt-print-text{display:none;white-space:pre-wrap;font-size:13px;line-height:1.8}
 .rpt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
+/* PDF 받기 — A4 세로 본문 폭(194mm ≈ 733px)에 맞춰 그린다. 넓으면 오른쪽 열이 잘린다 */
+.rpt-doc.rpt-pdf{width:100%;max-width:none;margin:0;padding:0;gap:18px;box-sizing:border-box}
+.rpt-pdf section{overflow:visible}
+.rpt-pdf h1{font-size:19px}
+.rpt-pdf h2{font-size:13.5px}
+.rpt-pdf .rpt-cond,.rpt-pdf .rpt-foot{font-size:10.5px}
+.rpt-pdf .rpt-table td,.rpt-pdf .rpt-table th{font-size:10.5px;padding:3px 4px}
+.rpt-pdf .rpt-print-text{font-size:11.5px;line-height:1.7}
+
 @media print{
   body.rpt-open{height:auto;overflow:visible;display:block}
   body.rpt-open>*:not(.rpt-view){display:none!important}

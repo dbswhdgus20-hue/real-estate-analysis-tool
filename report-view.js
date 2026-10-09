@@ -72,8 +72,10 @@ function renderReport() {
     '<div class="rpt-bar" role="toolbar" aria-label="보고서 도구">' +
     '<strong>심의 보고서</strong><span class="rpt-bar-meta">' + rptEsc(m.site) + '</span>' +
     '<button type="button" class="hbtn" onclick="openReportDialog()">조건 바꾸기</button>' +
+    '<button type="button" class="hbtn" id="rptPdfBtn" onclick="downloadReportPdf()">PDF 받기</button>' +
+    '<button type="button" class="hbtn" id="rptDocxBtn" onclick="downloadReportDocx()">Word 받기</button>' +
     '<button type="button" class="hbtn" onclick="exportReportExcel()">Excel 받기</button>' +
-    '<button type="button" class="hbtn" onclick="window.print()">인쇄 · PDF</button>' +
+    '<button type="button" class="hbtn" onclick="window.print()">인쇄</button>' +
     '<button type="button" class="hbtn hbtn-run" onclick="closeReport()">지도로 돌아가기</button></div>' +
     '<article class="rpt-doc">' +
     '<header><h1>인근 최근 3개년 실거래가격 등</h1><p class="rpt-cond">' + rptEsc(cond) + '</p>' +
@@ -162,5 +164,6 @@ function exportReportExcel() {
   XLSX.utils.book_append_sheet(wb, rptDongSheet(rptState), '동별 평균');
   XLSX.utils.book_append_sheet(wb, rptSilvSheet(rptState), '분양권');
   XLSX.utils.book_append_sheet(wb, rptSheet([['검토 문안']].concat(lines.map(function (l) { return [l]; })), [120], {}), '검토 문안');
-  XLSX.writeFile(wb, '심의보고서_' + (rptState.meta.dong || '사업지') + '_' + rptState.meta.date.replace(/\./g, '') + '.xlsx');
+  XLSX.writeFile(wb, rptFileBase() + '.xlsx');
+  setStatus('ok', 'Excel 저장 완료 — 브라우저 다운로드 폴더의 ' + rptFileBase() + '.xlsx');
 }
