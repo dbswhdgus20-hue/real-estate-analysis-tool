@@ -173,6 +173,11 @@ button{font-family:inherit}
 .ppbtn.on{background:var(--ui-accent);color:#fff;border-color:var(--ui-accent);font-weight:700}
 .complex-label .cl-sale{display:inline-block;font-size:9px;font-weight:700;line-height:13px;padding:0 4px;margin-right:4px;
   background:#fff;color:#222;border:1px solid rgba(0,0,0,.28);vertical-align:1px}
+/* 준공 전 단지(분양권 거래) — 브라운 테두리로 일반 단지와 구분 */
+.complex-label .cl-presale{display:inline-block;font-size:9px;font-weight:700;line-height:13px;padding:0 4px;margin-right:4px;
+  background:#fff;color:var(--kirt-brown);border:1px solid var(--kirt-brown);vertical-align:1px}
+.complex-label.presale .cl-box{outline:2px dashed var(--kirt-brown);outline-offset:1px}
+.badge.b-presale{background:#fff;color:var(--kirt-brown);border:1px solid var(--kirt-brown)}
 
 /* ══════════ 메인 ══════════ */
 .main{flex:1;display:flex;min-height:0;overflow:hidden}
@@ -830,6 +835,8 @@ var aptMks=[],oftMks=[],overlays=[],clusterer=null;
 var selR=2000,curLat=null,curLng=null,curLawd=null,curSido=null,curGu=null,curDong=null;
 // 마지막으로 끝난 분석의 조건과 수집한 전체 단지 (반경 밖 포함) — 심의 보고서(report.js)가 다시 쓴다
 var lastRun=null,lastAllComplexes=[];
+// 분양권(준공 전 단지) — 키 미등록이면 그 뒤로는 부르지 않는다
+var silvBlocked='',statPresale=null;
 var lawdNameMap={};         // 5자리 시군구코드 → {sido, gu}
 var allComplexes={},curComplex=null,curTab='trade',curAreaF='all';
 // 좌표가 잡힌 **모든** 단지 (반경 밖 포함). 분양 공고 위치를 실거래 단지로 맞출 때 쓴다.
@@ -1386,6 +1393,7 @@ function getAge(){
 }
 function ageActive(){var a=getAge();return !!(a.min||a.max);}
 function ageOf(c){
+  if(c&&c.presale)return 0;              // 준공 전 단지는 신축(0년)으로 본다
   var y=parseInt(c&&c.buildYear,10);
   return y>1900?(new Date().getFullYear()-y):null;
 }
@@ -1951,6 +1959,30 @@ function mergeOrphans(cMap){
   if(merged)fixNames(cMap);
   return merged;
 }
+/* 분양권 덩어리(P|…) 정리 — 같은 법정동에 같은 단지의 일반 매매가 있으면 이미 준공된 단지이므로 뺀다.
+   남은 것만 준공 전 단지(presale)로 지도에 올린다. 분양권 응답엔 준공연도·고유번호가 없어 이름과 지번으로 대조한다. */
+function splitPresale(cMap){
+  var built={}, kept=0, dropped=0;
+  var bunOf=function(c){return c._lotJibun?c._lotJibun.bun:'';};
+  Object.keys(cMap).forEach(function(k){
+    var c=cMap[k];
+    if(k.slice(0,2)==='P|'||c.type!=='아파트')return;
+    (built[c.dong]=built[c.dong]||[]).push({n:normHouseName(c.name),bun:bunOf(c),raw:c.name});
+  });
+  Object.keys(cMap).forEach(function(k){
+    if(k.slice(0,2)!=='P|')return;
+    var c=cMap[k], n=normHouseName(c.name), b=bunOf(c);
+    var done=(built[c.dong]||[]).some(function(x){
+      return x.n===n||(n.length>=4&&x.n.indexOf(n)!==-1)||(x.n.length>=4&&n.indexOf(x.n)!==-1)||
+             (b&&x.bun===b&&commonLen(c.name,x.raw)>=2);
+    });
+    if(done){delete cMap[k];dropped++;return;}
+    c.presale=true; c.buildYear='';
+    kept++;
+  });
+  if(kept||dropped)console.log('[분양권] 준공 전 단지 '+kept+'곳 표시 · 이미 준공된 단지 '+dropped+'곳 제외');
+  return {kept:kept,dropped:dropped};
+}
 // 지번 출처 신뢰도 — 본번·부번 > 고유번호 > 지번 문자열 파싱
 function srcRank(s){return s==='code'?3:s==='seq'?2:1;}
 // 단지별 대표 지번 확정 — 첫 거래가 아니라 최빈값 기준
@@ -2390,6 +2422,7 @@ async function loadLedger(c){
 // 상세 패널을 열 때 호출 — 비동기로 받아 도착하면 다시 그린다
 function ensureLedger(c){
   if(!LEDGER_ON){c._ledger='off';return;}
+  if(c.presale){c._ledger='nokey';return;}   // 준공 전 — 건축물대장이 아직 없다
   if(!c.ledgerKey){c._ledger='nokey';return;}
   // 'off'는 "꺼져 있어서 안 받았다"는 표식이지 결과가 아니다.
   // 다시 켰을 때 이걸 결과로 치면 영영 조회하지 않는다.
@@ -2433,7 +2466,8 @@ function supplyOf(c,excluUseAr){
       src:'ledger',n:m.n,loose:m.loose,exRef:m.ex
     };
   }
-  var est=getEstSupply(excluUseAr,c?c.buildYear:null);
+  // 준공 전 단지는 대장이 없으니 신축 전용률로 추정한다
+  var est=getEstSupply(excluUseAr,c?(c.presale?new Date().getFullYear():c.buildYear):null);
   if(!est)return null;
   return {supply:est.supply,supplyPy:est.supplyPy,ratio:est.ratio,src:'est'};
 }
@@ -2515,7 +2549,7 @@ async function loadSaleTypes(){
   var groups={};
   Object.keys(allComplexes).forEach(function(k){
     var c=allComplexes[k];
-    if(c.type!=='아파트'||!c.sigunguCd||!c.bjdongCd||c.saleType)return;
+    if(c.type!=='아파트'||c.presale||!c.sigunguCd||!c.bjdongCd||c.saleType)return;
     c._kapt='loading';
     var b=String(c.sigunguCd)+String(c.bjdongCd);
     (groups[b]=groups[b]||[]).push(c);
@@ -2620,7 +2654,7 @@ async function autoLedgers(){
   if(!LEDGER_ON)return;
   var gen=++ledgerGen;
   var list=Object.keys(allComplexes).map(function(k){return allComplexes[k];}).filter(function(c){
-    return c.type==='아파트'&&c.ledgerKey&&!(c._ledger&&typeof c._ledger==='object')&&ledgerWant(c).length;
+    return c.type==='아파트'&&!c.presale&&c.ledgerKey&&!(c._ledger&&typeof c._ledger==='object')&&ledgerWant(c).length;
   }).sort(function(a,b){return (a.dist||0)-(b.dist||0);});
   if(!list.length){var p0=document.getElementById('pTxt'); if(p0&&/대기|분양형태/.test(p0.textContent))p0.textContent='완료'; return;}
   var done=0,stopped='';
@@ -2983,7 +3017,7 @@ async function runAnalysis(){
   var start=getYm('start'),end=getYm('end'),type=document.getElementById('selType').value;
   if(parseInt(start)>parseInt(end)){setStatus('err','시작 기간이 종료보다 늦습니다.');return;}
   var runOk=false;
-  lastRun=null;lastAllComplexes=[];
+  lastRun=null;lastAllComplexes=[];statPresale=null;
 
   aptMks.forEach(m=>m.setMap(null));aptMks=[];
   oftMks.forEach(m=>m.setMap(null));oftMks=[];
@@ -3024,6 +3058,9 @@ async function runAnalysis(){
     {k:'aptRent',   on:type!=='oft', bucket:'rent',  t:'아파트',   nm:'aptNm',  label:'아파트전월세',
      fields:['aptNm','umdNm','deposit','monthlyRent','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','sggCd','umdCd','bonbun','bubun','jibun','aptSeq',
              'roadnm','roadnmbonbun','roadnmbubun','roadnmsggcd']},
+    // 준공 전 단지 — 분양권전매 실거래 (2026-10-09 실측: 준공연도·고유번호 없음, 지번은 숫자). 아파트로 다루고 presale 표시만 붙인다
+    {k:'aptSilv',   on:type!=='oft', bucket:'trade', t:'아파트',   nm:'aptNm',  label:'분양권', presale:true,
+     fields:['aptNm','umdNm','dealAmount','excluUseAr','floor','dealYear','dealMonth','dealDay','cdealType','cdealDay','dealingGbn','sggCd','sggNm','jibun']},
     {k:'offiTrade', on:type!=='apt', bucket:'trade', t:'오피스텔', nm:'offiNm', label:'오피스텔매매',
      fields:['offiNm','umdNm','dealAmount','excluUseAr','floor','dealYear','dealMonth','dealDay','buildYear','cdealType','cdealDay','dealingGbn','sggCd','sggNm','umdCd','bonbun','bubun','jibun','aptSeq']},
     {k:'offiRent',  on:type!=='apt', bucket:'rent',  t:'오피스텔', nm:'offiNm', label:'오피스텔전월세',
@@ -3043,8 +3080,13 @@ async function runAnalysis(){
 
     var results=await runPool(tasks, async function(t){
       var label=t.job.label+' '+t.lawd+' '+t.ym;
+      if(t.job.presale&&silvBlocked)return {t:t, rows:[]};
       var rows=await fetchAllItems(API_SPECS[t.job.k], {LAWD_CD:t.lawd, DEAL_YMD:t.ym}, t.job.fields, label);
-      if(rows.__apiError&&rows.length===0)throw new Error(rows.__apiError);
+      if(rows.__apiError&&rows.length===0){
+        // 분양권은 보조 자료 — 키 미등록이면 나머지 달은 부르지 않고, 분석 실패로 세지 않는다
+        if(t.job.presale){if(kaptKeyError(rows.__apiError))silvBlocked=rows.__apiError;return {t:t, rows:[]};}
+        throw new Error(rows.__apiError);
+      }
       return {t:t, rows:dropCanceled(rows,label)};
     }, FETCH_CONCURRENCY, function(done,total,t){
       setProg(3+Math.round(done/total*50), t.job.label+' '+t.ym+' ('+t.lawd+') · '+done+'/'+total);
@@ -3058,6 +3100,7 @@ async function runAnalysis(){
       r.rows.forEach(function(d){
         if(j.nm==='offiNm')d.aptNm=d.offiNm;
         d._type=j.t; d._ym=r.t.ym;
+        if(j.presale)d._presale=true;
         normRoad(d);
         if(j.bucket==='rent'){
           d._rt=parseInt(d.monthlyRent||'0')>0?'월세':'전세';
@@ -3086,7 +3129,8 @@ async function runAnalysis(){
     var cMap={};
     function ensure(d){
       var seq=String(d.aptSeq||'').trim();
-      var key=seq?('#'+seq+'|'+d._type):((d.aptNm||'-')+'|'+(d.umdNm||'')+'|'+d._type);
+      var key=d._presale?('P|'+(d.aptNm||'-')+'|'+(d.umdNm||''))     // 분양권은 따로 묶었다가 준공 여부로 거른다
+        :seq?('#'+seq+'|'+d._type):((d.aptNm||'-')+'|'+(d.umdNm||'')+'|'+d._type);
       if(!cMap[key])cMap[key]={key:key,name:d.aptNm,dong:d.umdNm,type:d._type,buildYear:d.buildYear,
                                trades:[],rents:[],_lots:{},_seqs:{},_roads:{},_names:{}};
       var c=cMap[key];
@@ -3099,6 +3143,7 @@ async function runAnalysis(){
     allRent.forEach(function(d){ensure(d).rents.push(d);});
     fixNames(cMap);
     var mergedOrphans=mergeOrphans(cMap);
+    statPresale=splitPresale(cMap);
     if(mergedOrphans)console.log('[단지 병합] 고유번호가 빠진 거래 '+mergedOrphans+'덩어리를 같은 이름의 단지에 합침');
     // 직거래 제외: 원본은 tradesAll에 보관하고 trades만 거른다
     Object.keys(cMap).forEach(function(k){var c=cMap[k];c.tradesAll=c.trades;c.trades=filterDirect(c.tradesAll);});
@@ -3187,13 +3232,13 @@ async function runAnalysis(){
 
       // 라벨 오버레이 — 왼쪽 네모=선택, 본문=상세보기 (기능 분리)
       var labelDiv = document.createElement('div');
-      labelDiv.className = 'complex-label';
+      labelDiv.className = 'complex-label'+(c.presale?' presale':'');
       labelDiv.setAttribute('data-key', key);
       labelDiv.innerHTML =
         '<div class="cl-box" style="background:'+color+'">' +
           '<div class="cl-check" title="선택 (Excel 대상)"></div>' +
-          '<div class="cl-body" style="color:'+ink+'" title="상세정보 보기">' +
-            '<span class="cl-name">'+c.name+'</span>' +
+          '<div class="cl-body" style="color:'+ink+'" title="'+(c.presale?'준공 전 단지 — 분양권 거래가 · ':'')+'상세정보 보기">' +
+            '<span class="cl-name">'+(c.presale?'<span class="cl-presale">분양권</span>':'')+c.name+'</span>' +
             (avgText ? '<span class="cl-avg">'+avgText+'</span>' : '') +
           '</div>' +
         '</div>' +
@@ -3261,6 +3306,9 @@ async function runAnalysis(){
     var rText=selR>=1000?(selR/1000)+'km':selR+'m';
     setProg(100,'완료');
     var statTxt='반경 '+rText+' · '+curLawds.length+'개 구 분석 · 아파트 '+aptCnt+'개 · 오피스텔 '+oftCnt+'개 · 거래 '+statFetched.toLocaleString()+'건';
+    var presaleIn=inRadius.filter(function(c){return c.presale;}).length;
+    if(presaleIn)statTxt+=' · 준공 전(분양권) '+presaleIn+'개';
+    if(silvBlocked&&type!=='oft')statTxt+=' · 분양권 API 미승인';
     if(statCanceled>0)statTxt+=' (해제 '+statCanceled.toLocaleString()+'건 제외)';
     if(statLot&&statLot.total){
       statTxt+=' · 지번 '+statLot.ok+'/'+statLot.total;
@@ -3485,7 +3533,7 @@ async function exportExcel(){
     var groups=groupByType(c,c.trades);
     if(!groups.length)return;
     var hr=T.length;
-    T.push(['■ '+c.name+'  ('+c.type+(c.saleType&&c.saleType!=='분양'?' · '+c.saleType:'')+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.buildYear||'-')+'년 · 사업지 '+distTxt(c)+')']);
+    T.push(['■ '+c.name+'  ('+c.type+(c.presale?' · 준공 전(분양권 거래, 공급면적 추정)':'')+(c.saleType&&c.saleType!=='분양'?' · '+c.saleType:'')+' · '+c.dong+(c.jibunTxt?' '+c.jibunTxt:'')+' · '+(c.presale?'미준공':(c.buildYear||'-')+'년')+' · 사업지 '+distTxt(c)+')']);
     tm.push({s:{r:hr,c:0},e:{r:hr,c:12}});
     var allJ=[],allK=[],ranges=[],gRef=[];
     groups.forEach(function(g){
@@ -3495,7 +3543,7 @@ async function exportExcel(){
         var py=b.py?Math.round(b.py*10)/10:null;
         var ppy=(amt&&py)?Math.round(amt/py):null;
         if(amt)js.push(amt); if(ppy)ks.push(ppy); if(py)pys.push(py);
-        T.push([c.name,c.type,g.label,dt(d),d.aptDong||'',d.floor?parseInt(d.floor):'',
+        T.push([c.name,c.presale?'분양권':c.type,g.label,dt(d),d.aptDong||'',d.floor?parseInt(d.floor):'',
           ar, b.sup?b.sup.supply:(c.type==='오피스텔'?'':null), py,
           amt||null, py&&amt?{v:ppy,f:'IF(I'+(r+1)+'>0,ROUND(J'+(r+1)+'/I'+(r+1)+',0),"")',z:NUM}:null, b.src,
           isDirectDeal(d)?'직거래':(d.dealingGbn?'중개거래':'')]);
@@ -4274,7 +4322,8 @@ function renderDetail(){
 
   // 섹션1: 기본 정보
   html+='<div class="dsec"><div class="dsec-title">기본 정보</div>'+
-    '<div class="drow"><span class="dk">유형</span><span class="dv"><span class="badge '+(c.type==='아파트'?'b-apt':'b-oft')+'">'+c.type+'</span></span></div>'+
+    '<div class="drow"><span class="dk">유형</span><span class="dv"><span class="badge '+(c.type==='아파트'?'b-apt':'b-oft')+'">'+c.type+'</span>'+
+      (c.presale?' <span class="badge b-presale" title="분양권전매 실거래 — 공급면적은 신축 전용률로 추정">준공 전 · 분양권</span>':'')+'</span></div>'+
     (c.type==='아파트'?'<div class="drow"><span class="dk">분양형태</span><span class="dv" title="K-apt 기준">'+(c.saleType||(c._kapt==='none'?'K-apt 미등재':c._kapt==='loading'?'확인 중':'-'))+(c.kaptCnt?' · '+Number(c.kaptCnt).toLocaleString()+'세대':'')+'</span></div>':'')+
     '<div class="drow"><span class="dk">법정동</span><span class="dv">'+c.dong+'</span></div>'+
     '<div class="drow"><span class="dk">지번</span><span class="dv">'+lotCell(c)+'</span></div>'+
@@ -4423,7 +4472,7 @@ function renderTable(){
         var tObj=getAreaTypeObj(getAreaType(area));
         return '<tr>'+
           '<td>'+d.dealYear+'.'+d.dealMonth.padStart(2,'0')+'.'+d.dealDay.padStart(2,'0')+'</td>'+
-          '<td><span class="badge '+(d._type==='아파트'?'b-apt':'b-oft')+'">'+d._type+'</span></td>'+
+          '<td><span class="badge '+(d._presale?'b-presale':d._type==='아파트'?'b-apt':'b-oft')+'">'+(d._presale?'분양권':d._type)+'</span></td>'+
           '<td>'+(tObj?'<span style="font-size:10px;padding:1px 6px;border-radius:0;background:#E9F0F8;color:#41548B;font-weight:600">'+tObj.label+'</span>':'-')+'</td>'+
           '<td class="r">'+area.toFixed(2)+'</td>'+
           '<td class="r">'+areaPy+'</td>'+
