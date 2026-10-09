@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════
    우측 상세 패널 — 단지 하나를 한눈에
-     ① 핵심 숫자 (2×2)  ② 단지 정보  ③ 분양 (공고·최초 분양가)  ④ 평형별  ⑤ 전월세  ⑥ 상세(접힘)
+     ⓪ 상세·건축물대장(접힘, 맨 위)  ① 핵심 숫자 (2×2)  ② 단지 정보  ③ 분양  ④ 평형별  ⑤ 전월세
    예전 패널은 같은 값이 여러 섹션에 겹쳐 있었다 (세대수·준공 ↔ 건축개요, 평균 전세가 ↔ 전월세,
    면적 정보 ↔ 타입별 구성, 분양 공고 ↔ 최초 분양가). 값마다 한 곳에만 둔다.
    index.html 전역(curComplex, supplyOf, pyPrice, applyAF, afActive, buildingRows, lotCell, geoSrcCell,
@@ -93,14 +93,19 @@ function dpTypes(c) {
     var list = g[k], ars = list.map(function (d) { return parseFloat(d.excluUseAr); }).sort(function (a, b) { return a - b; });
     var rep = ars[Math.floor(ars.length / 2)], sp = c.type === '오피스텔' ? null : supplyOf(c, rep);
     if (sp) srcs[sp.src] = 1;
+    // 대장·공고 실측이 아닌 평형은 표에서 바로 보이게 (평당가가 추정 공급면적 기준)
+    var est = sp && sp.src !== 'ledger' && sp.src !== 'notice'
+      ? ' <span class="dp-est" title="' + (sp.src === 'peer' ? '대장에 주거공용이 없어 인근 비슷한 연식·평형 단지의 실측 전용률(' + sp.ratio + '%, 표본 ' + sp.n + ')로 추정'
+        : '건축년도 기준 전용률(' + sp.ratio + '%)로 추정') + '">추정</span>' : '';
     var avg = dpAvg(list.map(dpMan).filter(Boolean)), py = pyPrice(c, list);
-    return '<tr><td>' + k + '㎡</td><td class="r">' + (c.type === '오피스텔' ? (rep / 3.3058).toFixed(1) : sp ? Number(sp.supplyPy).toFixed(1) : '-') + '</td>' +
+    return '<tr><td>' + k + '㎡' + est + '</td><td class="r">' + (c.type === '오피스텔' ? (rep / 3.3058).toFixed(1) : sp ? Number(sp.supplyPy).toFixed(1) : '-') + '</td>' +
       '<td class="r">' + list.length + '</td><td class="r">' + dpEok(avg) + '</td><td class="r">' + (py ? fmt(py.v) : '-') + '</td></tr>';
   }).join('');
   var led = c._ledger && typeof c._ledger === 'object' ? c._ledger : null;
   var src = c.type === '오피스텔' ? '<span class="badge b-quiet">전용 기준</span>'
-    : srcs.ledger ? '<span class="badge b-apt" title="건축물대장 ' + (led ? led.ho.toLocaleString() + '호' : '') + ' 실측">공급 대장</span>'
+    : srcs.ledger ? '<span class="badge b-apt" title="건축물대장 ' + (led ? led.ho.toLocaleString() + '호' : '') + ' 실측">공급 대장' + (srcs.peer || srcs.est ? ' · 일부 추정' : '') + '</span>'
     : srcs.notice ? '<span class="badge b-apt" title="청약홈 공고의 주택형별 공급면적">공급 분양공고</span>'
+    : srcs.peer ? '<span class="badge b-est" title="대장에 주거공용이 없어 인근 실측 전용률로 추정">공급 추정 (인근 실측)</span>'
     : '<span class="badge b-est" title="건축년도별 전용률로 추정">공급 추정</span>';
   return dpSec('평형별', '<table class="dp-tbl"><thead><tr><th>평형</th><th class="r">' + (c.type === '오피스텔' ? '전용평' : '공급평') +
     '</th><th class="r">건수</th><th class="r">평균가</th><th class="r">평당(만)</th></tr></thead><tbody>' + rows + '</tbody></table>', src);
@@ -139,6 +144,6 @@ function renderDetail() {
   document.getElementById('dpTitle').textContent = c.name;
   document.getElementById('dpSub').textContent = c.dong + (c.dist != null ? ' · 사업지 ' + (c.dist >= 1000 ? (c.dist / 1000).toFixed(1) + 'km' : c.dist + 'm') : '');
   var body = document.getElementById('dpBody'), keep = body.querySelector('.dp-more[open]');
-  body.innerHTML = dpKpis(c) + dpInfo(c) + dpSale(c) + dpTypes(c) + dpRents(c) + dpMore(c);
+  body.innerHTML = dpMore(c) + dpKpis(c) + dpInfo(c) + dpSale(c) + dpTypes(c) + dpRents(c);   // 상세(접힘)는 맨 위
   if (keep) body.querySelector('.dp-more').open = true;     // 다시 그려도 펼친 상태 유지
 }

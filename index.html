@@ -2329,7 +2329,7 @@ function logLotCoverage(list){
 var LEDGER_BASE='https://apis.data.go.kr/1613000/BldRgstHubService/getBrExposPubuseAreaInfo';
 var LEDGER_KEY=PK;            // ※ 건축HUB 서비스는 공공데이터포털에서 별도 활용신청 필요
 var LEDGER_ON=true;           // 헤더 체크박스로 토글
-var LEDGER_CACHE='kirt.ledger.v2.';   // v2: 지하대피소 등 기타공용 분류 보강, 비주거 호 제외
+var LEDGER_CACHE='kirt.ledger.v3.';   // v3: 1990년대 대장의 세대 전유 부대·복리시설(창고 등)을 상가로 오인해 표가 비던 문제 수정 (v2: 기타공용 분류 보강)
 var LEDGER_TTL=180*864e5;     // 건축물대장은 거의 불변 — 180일
 var ledgerMem={},ledgerInflight={},ledgerKeyWarned=false;
 var ledgerCalls=0;
@@ -2368,12 +2368,18 @@ function buildAreaTable(rows){
     if(!cls){skipped++;return;}
     var k=(r.dongNm||'')+'|'+(r.hoNm||'');
     if(!ho[k])ho[k]={ex:0,res:0,etc:0,nonres:false};
-    ho[k][cls]+=a;
     // 전유 용도가 주거가 아니면(근린생활시설·체육시설 등) 표에서 뺀다 — 같은 전용면적의 상가가 섞이는 것 방지
     if(cls==='ex'){
       var pu=((r.mainPurpsCdNm||'')+' '+(r.etcPurps||'')).trim();
-      if(pu&&!/아파트|공동주택|주택|오피스텔|다세대|연립|도시형/.test(pu))ho[k].nonres=true;
+      if(pu&&!/아파트|공동주택|주택|오피스텔|다세대|연립|도시형/.test(pu)){
+        // 1990년대 대장은 세대 창고·보일러실 같은 1㎡ 안팎의 전유를 '부대시설·복리시설'로 따로 적는다
+        // (실측: 두정동 527 주공그린 — 세대마다 전유 부대시설 1.2·1.36㎡). 상가로 보고 호 전체를 빼면 표가 통째로 비었다.
+        // 전용(주거)에는 넣지 않고 계약면적 쪽(기타)에만 더한다.
+        if(/부대시설|복리시설/.test(pu)){ho[k].etc+=a;return;}
+        ho[k].nonres=true;
+      }
     }
+    ho[k][cls]+=a;
   });
   var bucket={};
   Object.keys(ho).forEach(function(k){
@@ -2401,6 +2407,9 @@ function matchSupply(table,v){
   var far=Math.max(0.5,v*0.02);          // 2% 넘으면 매칭 포기
   if(bd>far)return null;
   if(best.supply<=best.ex)return null;    // 공급면적이 전용면적 이하면 이상치
+  // 전용률 90% 초과 = 대장에 계단·복도 같은 주거공용이 거의 안 적힌 것 (실측: 마포 성지·정우상가맨션·우성 99~100%)
+  // → 실측으로 쓰지 않고 인근 실측 전용률 추정으로 넘긴다
+  if(best.ex/best.supply>PEER_MAX)return null;
   return {supply:best.supply,contract:best.contract,ex:best.ex,n:best.n,diff:bd,loose:bd>tol};
 }
 // 이 단지에서 공급면적이 필요한 전용면적 목록 (매매·전월세 모두)
@@ -2514,13 +2523,45 @@ function supplyOf(c,excluUseAr){
     };
   }
   // 준공 전 단지는 대장이 없으니 신축 전용률로 추정한다
+  // 대장이 없거나 대장에 주거공용이 빠진 단지 — 같은 분석 안의 비슷한 연식·평형 단지의 실측 전용률로 추정
+  var pr=c&&c.type==='아파트'&&!c.presale?peerRatio(c,v):null;
+  if(pr)return {supply:Math.round(v/pr.ratio*100)/100,supplyPy:Math.round(v/pr.ratio/3.3058*10)/10,ratio:Math.round(pr.ratio*1000)/10,src:'peer',n:pr.n};
   var est=getEstSupply(excluUseAr,c?(c.presale?new Date().getFullYear():c.buildYear):null);
   if(!est)return null;
   return {supply:est.supply,supplyPy:est.supplyPy,ratio:est.ratio,src:'est'};
 }
+/* 인근 실측 전용률 — 오래된 대장은 계단·복도 같은 주거공용을 아예 적지 않은 경우가 있다
+   (실측: 마포 도화동 우성 — 공용은 노인정·주차장 같은 부속건축물뿐, 강변그린·산호 — 전유만 등재).
+   이런 단지는 대장으로 공급면적을 구할 수 없으므로, 같은 분석 반경에서 대장 실측이 된 단지 중
+   준공 ±5년·전용 ±15㎡(모자라면 ±10년·±25㎡)의 전용률 중앙값을 쓴다. 표본 3개 미만이면 고정 추정표로 넘어간다. */
+var peerMemo={};
+var PEER_MIN=0.55, PEER_MAX=0.90;   // 정상 아파트 전용률 범위 — 90% 초과는 대장에 주거공용이 빠진 것으로 본다 (matchSupply도 같은 기준)
+function peerRatio(c,ex){
+  var yr=parseInt(c&&c.buildYear,10);
+  if(!(yr>1900)||!(ex>0))return null;
+  var src=Object.keys(allComplexes).map(function(k){return allComplexes[k];})
+    .filter(function(o){return o!==c&&o.type==='아파트'&&!o.presale&&o._ledger&&typeof o._ledger==='object';});
+  var mk=c.key+'|'+ex.toFixed(1)+'|'+src.length;
+  if(peerMemo[mk]!==undefined)return peerMemo[mk];
+  function pick(span,tol){
+    var r=[];
+    src.forEach(function(o){
+      var y=parseInt(o.buildYear,10);
+      if(!(Math.abs(y-yr)<=span))return;
+      o._ledger.table.forEach(function(t){
+        var q=t.ex/t.supply;
+        // 전용률이 범위를 벗어나면 그 단지 대장도 주거공용이 빠진 것 — 표본에서 뺀다
+        if(t.supply>t.ex&&q>=PEER_MIN&&q<=PEER_MAX&&Math.abs(t.ex-ex)<=tol)r.push(q);
+      });
+    });
+    return r;
+  }
+  var r=pick(5,15); if(r.length<3)r=pick(10,25);
+  return (peerMemo[mk]=r.length>=3?{ratio:median(r),n:r.length}:null);
+}
 function supplySrcLabel(s){
   if(!s)return '-';
-  return s.src==='ledger'?(s.loose?'대장(근사)':'대장'):s.src==='notice'?'분양공고':'추정';
+  return s.src==='ledger'?(s.loose?'대장(근사)':'대장'):s.src==='notice'?'분양공고':s.src==='peer'?'추정(인근 실측)':'추정';
 }
 // 선택 단지 전부의 대장을 미리 받아둔다 (Excel 내보내기 직전)
 // ── K-apt 분양형태 (분양/임대/혼합) ──
@@ -3378,10 +3419,11 @@ async function runAnalysis(){
     // 분양단지 자동 조회
     setProg(100,'분양단지 조회 중...');
     loadBunyang();
-    // K-apt 분양형태 → 건축물대장 자동 실측 순서로 (동시에 부르면 공공데이터 호출 제한에 걸리기 쉽다)
+    // 건축물대장 자동 실측과 K-apt 분양형태를 동시에 — 서로 다른 서비스라 초당 제한을 나눠 쓰지 않는다.
+    // (예전엔 K-apt가 끝난 뒤 대장을 불러 공급면적이 1~2분 '추정'으로 남았다. 실측: 마포역 1km — 대장 시작이 65초 뒤)
+    autoLedgers();
     (async function(){
       try{await loadSaleTypes();}catch(e){console.warn('[K-apt 분양형태] '+e.message);}
-      autoLedgers();
     })();
     document.getElementById('selectBar').style.display='block';
     renderSelectBar();
