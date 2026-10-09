@@ -58,10 +58,10 @@ API 인증키는 저장소나 브라우저에 포함되지 않으며 Vercel 서�
 
 ## 로컬 실행
 
-```powershell
-py -m http.server 8080
-```
+지도·실거래·심의 보고서까지 PC에서 그대로 돌려 볼 수 있습니다 (Node.js 18 이상).
 
-브라우저에서 `http://localhost:8080`을 엽니다. `file://` 방식으로는 지도 SDK가 정상 작동하지 않습니다.
+1. `.env.example`을 복사해 `.env.local`을 만들고 `DATA_SERVICE_KEY`, `KAKAO_JS_KEY`를 넣습니다. `.env.local`은 커밋되지 않습니다.
+2. Kakao Developers의 JavaScript SDK 도메인에 `http://localhost:3000`을 등록합니다.
+3. 처음 한 번 `npm install`, 그다음부터 `npm run local`을 실행하고 `http://localhost:3000`을 엽니다.
 
-Vercel 배포 전 로컬에서 API까지 확인하려면 Vercel CLI를 사용하고 `.env.local`에 키를 설정합니다. `.env.local`은 커밋하지 않습니다.
+키를 바꾼 뒤에는 서버를 껐다 켜야 반영됩니다. 계산 테스트는 `npm test`로 돌립니다.
