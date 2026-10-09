@@ -531,6 +531,7 @@ tr:last-child td{border-bottom:none}
 
 </style>
 <link rel="stylesheet" href="report.css">
+<link rel="stylesheet" href="detail-panel.css">
 </head>
 <body>
 
@@ -3401,7 +3402,9 @@ function openComplex(key){
   document.getElementById('bpTitle').textContent=curComplex.name+' · 거래 내역';
   // 탭 복원 (분양단지 보다가 아파트 클릭 시)
   document.querySelectorAll('.tab').forEach(function(t){t.style.display='';});
-  document.getElementById('bpMeta').textContent=curComplex.dong+(curComplex.buildYear?' · '+curComplex.buildYear+'년 건축':'')+(curComplex.dist?' · 사업지 '+(curComplex.dist>=1000?(curComplex.dist/1000).toFixed(1)+'km':curComplex.dist+'m'):'');
+  // 법정동·건축년도·거리는 우측 패널에 있으니 여기엔 거래 범위만 (겹침 정리)
+  var _ds=curComplex.trades.map(function(d){return d.dealYear+'.'+String(d.dealMonth).padStart(2,'0');}).sort();
+  document.getElementById('bpMeta').textContent='매매 '+curComplex.trades.length+'건 · 전월세 '+curComplex.rents.length+'건'+(_ds.length?' · '+_ds[0]+' ~ '+_ds[_ds.length-1]:'');
   ['trade','rent','chart'].forEach((t,i)=>document.getElementById('tab-'+t).className='tab'+(t==='trade'?' active':''));
   document.getElementById('tblArea').style.display='block';
   document.getElementById('chartArea').style.display='none';
@@ -4227,75 +4230,8 @@ function openBunyangDetail(d){
 
 
 // 건축개요 섹션 — 상세 패널에서는 전체, 호버 카드에서는 요약만 보여준다
-function renderBuildingSection(c){
-  var st=c._bld, head='', body='';
-  if(st==='loading')    head='<span class="badge b-quiet">조회 중</span>';
-  else if(st==='nokey') head='<span class="badge b-quiet">지번 미확보</span>';
-  else if(st==='off')   head='<span class="badge b-quiet">조회 꺼짐</span>';
-  else if(st==='empty') head='<span class="badge b-warn">대장 정보 없음</span>';
-  else if(st==='error') head='<span class="badge b-danger" title="'+(c._bldMsg||'').replace(/"/g,'')+'">조회 실패</span>';
-
-  var rows=buildingRows(c,false);
-  if(rows.length){
-    body=rows.map(function(r){
-      return '<div class="drow"><span class="dk">'+r[0]+'</span><span class="dv">'+r[1]+'</span></div>';
-    }).join('');
-  }else{
-    var msg = st==='loading' ? '건축물대장 조회 중'
-            : st==='nokey'   ? '지번을 확보하지 못해 조회할 수 없음'
-            : st==='off'     ? '헤더에서 건축물대장 조회를 켜면 표시됨'
-            : st==='empty'   ? '건축물대장에 등재 정보 없음'
-            : st==='error'   ? '조회 실패 — 콘솔 확인'
-            : '마커에 마우스를 올리거나 잠시 기다리면 표시됨';
-    body='<div class="drow" style="color:var(--ui-ink-2);font-size:11.5px">'+msg+'</div>';
-  }
-  return '<div class="dsec"><div class="dsec-title">건축개요 '+head+'</div>'+body+'</div>';
-}
 
 // 면적 섹션 — 값과 출처를 반드시 같이 보여준다
-function renderAreaSection(c,areas,sampleArea){
-  var st=c._ledger, head='', body='';
-  if(st==='loading')      head='<span class="badge b-quiet">대장 조회 중</span>';
-  else if(st==='nokey')   head='<span class="badge b-quiet">지번 미확보 · 추정</span>';
-  else if(st==='off')     head='<span class="badge b-quiet">대장 조회 꺼짐 · 추정</span>';
-  else if(st==='empty')   head='<span class="badge b-warn">대장 결과 없음 · 추정</span>';
-  else if(st==='error')   head='<span class="badge b-danger" title="'+(c._ledgerMsg||'').replace(/"/g,'')+'">대장 조회 실패 · 추정</span>';
-  else if(st&&typeof st==='object') head='<span class="badge b-apt">대장 '+st.ho.toLocaleString()+'호</span>';
-
-  body+='<div class="drow"><span class="dk">전용면적 종류</span><span class="dv" style="font-size:10px">'+
-    (areas.length?areas.slice(0,4).join('㎡, ')+(areas.length>4?' 외 '+(areas.length-4)+'종':'㎡'):'-')+'</span></div>';
-
-  // 거래가 많은 순으로 상위 전용면적 3종을 공급면적과 함께
-  var cnt={};
-  c.trades.forEach(function(d){var a=parseFloat(d.excluUseAr||'0');if(a>0){var k=a.toFixed(1);cnt[k]=(cnt[k]||0)+1;}});
-  var tops=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a];}).slice(0,3);
-  if(!tops.length&&sampleArea)tops=[parseFloat(sampleArea).toFixed(1)];
-
-  tops.forEach(function(k){
-    var v=parseFloat(k), sp=supplyOf(c,v);
-    if(!sp)return;
-    var badge=sp.src==='ledger'
-      ? '<span class="badge b-apt" title="건축물대장 전유+주거공용 '+(sp.n||1)+'호 중앙값">대장</span>'
-      : '<span class="badge b-est">추정</span>';
-    if(sp.src==='ledger'&&sp.loose)
-      badge='<span class="badge b-warn" title="대장 전용면적 '+sp.exRef+'㎡와 근사 매칭">대장 근사</span>';
-    body+='<div class="drow"><span class="dk">전용 '+v.toFixed(1)+'㎡ <span style="font-size:9.5px;color:var(--ui-ink-3)">('+cnt[k]+'건)</span></span>'+
-      '<span class="dv">'+sp.supply+'㎡ ('+sp.supplyPy+'평) '+badge+'</span></div>';
-  });
-
-  if(st&&typeof st==='object'){
-    var sp0=supplyOf(c,parseFloat(tops[0]||0));
-    if(sp0&&sp0.src==='ledger'){
-      body+='<div class="drow"><span class="dk">실측 전용률</span><span class="dv blue">'+sp0.ratio+'%</span></div>';
-      body+='<div class="drow"><span class="dk">계약면적 <span class="badge b-quiet">참고</span></span><span class="dv">'+sp0.contract+'㎡</span></div>';
-    }
-  }else if(st!=='loading'){
-    body+='<div class="drow"><span class="dk">적용 전용률</span><span class="dv orange">'+
-      (parseInt(c.buildYear||'0')>0?(parseInt(c.buildYear)<=1995?62:parseInt(c.buildYear)<=2000?67:parseInt(c.buildYear)<=2005?70:parseInt(c.buildYear)<=2010?73:76):72)+
-      '% <span class="badge b-est">건축년도 기반</span></span></div>';
-  }
-  return '<div class="dsec"><div class="dsec-title">면적 정보 '+head+'</div>'+body+'</div>';
-}
 
 // 지번 표시 — 출처와 신뢰도를 값과 같이 보여준다 (추정치와 실측치가 같은 얼굴을 하지 않도록)
 function lotCell(c){
@@ -4312,27 +4248,6 @@ function lotCell(c){
     : '';
   return c.jibunTxt+' '+tag+warn;
 }
-/* 실거래 단지에 붙은 분양 공고 — 지도에서 라벨을 합쳤으니 상세도 같이 보여준다 */
-function renderBunyangSection(c){
-  var d=c._bunyang;
-  if(!d)return '';
-  var st=getBunyangStatus(d);
-  var money=[['최고 분양가',d.LTTOT_TOP_AMOUNT],['기본 분양가',d.LTTOT_BSAMT],['평균 분양가',d.MN_PRARNG_VM]]
-    .filter(function(m){return m[1]&&m[1]!=='0';})
-    .map(function(m){return '<div class="drow"><span class="dk">'+m[0]+'</span><span class="dv" style="color:#6A2C00">'+
-      Number(m[1]).toLocaleString()+'만원</span></div>';}).join('');
-  return '<div class="dsec"><div class="dsec-title">분양 공고 '+
-      '<span class="badge" style="background:'+st.bg+';color:#fff">'+st.txt+'</span></div>'+
-    '<div class="drow"><span class="dk">공고명</span><span class="dv" style="font-size:11px;text-align:right;max-width:170px;line-height:1.4">'+(d.HOUSE_NM||'-')+'</span></div>'+
-    (d.TOT_SUPLY_HSHLDCO?'<div class="drow"><span class="dk">총 공급세대</span><span class="dv blue">'+Number(d.TOT_SUPLY_HSHLDCO).toLocaleString()+'세대</span></div>':'')+
-    (d.RCRIT_PBLANC_DE?'<div class="drow"><span class="dk">모집공고일</span><span class="dv" style="font-size:11px">'+d.RCRIT_PBLANC_DE+'</span></div>':'')+
-    (d.MVN_PREARNGE_YM?'<div class="drow"><span class="dk">입주예정</span><span class="dv" style="font-size:11px">'+d.MVN_PREARNGE_YM+'</span></div>':'')+
-    money+
-    (d.PBLANC_URL?'<div class="drow"><span class="dk">공고문</span><a href="'+d.PBLANC_URL+'" target="_blank" style="font-size:11px;color:#41548B;font-weight:600">공고 보기 →</a></div>':'')+
-    '<div class="drow"><span class="dk"></span><a href="javascript:void(0)" onclick="openBunyangDetail(allComplexes[\''+
-      String(c.key||'').replace(/'/g,"\\'")+'\']._bunyang)" style="font-size:11px;color:#41548B;font-weight:600">분양 정보 전체 보기 →</a></div>'+
-  '</div>';
-}
 
 // 좌표를 무엇으로 찾았는지 — 위치 신뢰도를 값과 같이 보여준다
 function geoSrcCell(c){
@@ -4342,110 +4257,8 @@ function geoSrcCell(c){
     (c._geoLoose?' · 법정동이 맞지 않아 첫 결과로 대체':'')+'">단지명'+(c._geoLoose?' · 주의':'')+'</span>';
   return '<span class="badge b-quiet">-</span>';
 }
-function renderDetail(){
-  if(!curComplex)return;
-  var c=curComplex;
-  document.getElementById('detailPanel').classList.add('open');relayoutMap();
-  document.getElementById('dpTitle').textContent=c.name;
-  document.getElementById('dpSub').textContent=c.dong+(c.buildYear?' · '+c.buildYear+'년 건축':'');
 
-  var tradeAmts=c.trades.map(d=>parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-  var jAmts=c.rents.filter(d=>d._rt==='전세').map(d=>parseInt((d.deposit||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-  var avg=tradeAmts.length?Math.round(tradeAmts.reduce((a,b)=>a+b,0)/tradeAmts.length):0;
-  var minV=tradeAmts.length?Math.min(...tradeAmts):0;
-  var maxV=tradeAmts.length?Math.max(...tradeAmts):0;
-  var jAvg=jAmts.length?Math.round(jAmts.reduce((a,b)=>a+b,0)/jAmts.length):0;
-  var ratio=avg>0&&jAvg>0?Math.round(jAvg/avg*100):0;
-  var ratioClass=ratio>=80?'b-danger':ratio>=70?'b-warn':'b-safe';
-  var distText=c.dist>=1000?(c.dist/1000).toFixed(1)+'km':c.dist+'m';
-
-  // 면적 목록 (전용+추정공급)
-  var areas=[...new Set(c.trades.map(d=>parseFloat(d.excluUseAr||'0')).filter(v=>v>0).map(v=>v.toFixed(1)))].sort((a,b)=>parseFloat(a)-parseFloat(b));
-
-  // 타입별 집계
-  var typeStat={};
-  AREA_TYPES.forEach(t=>{typeStat[t.key]={count:0,total:0,label:t.label,desc:t.desc};});
-  c.trades.forEach(d=>{var t=getAreaType(d.excluUseAr);if(t&&typeStat[t]){var a=parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;typeStat[t].count++;typeStat[t].total+=a;}});
-  var typeRows=AREA_TYPES.filter(t=>typeStat[t.key].count>0);
-  var maxCnt=typeRows.length?Math.max(...typeRows.map(t=>typeStat[t.key].count)):1;
-  var barColors=['#41548B','#B3B3B3','#41548B','#A37E51','#6A2C00'];
-
-  // 거래 기간
-  var allDates=c.trades.map(d=>d.dealYear+(d.dealMonth||'').padStart(2,'0')+(d.dealDay||'').padStart(2,'0')).filter(Boolean).sort();
-  var firstD=allDates.length?allDates[0].slice(0,4)+'.'+allDates[0].slice(4,6)+'.'+allDates[0].slice(6):'';
-  var lastD=allDates.length?allDates[allDates.length-1].slice(0,4)+'.'+allDates[allDates.length-1].slice(4,6)+'.'+allDates[allDates.length-1].slice(6):'';
-
-  // 추정 공급면적 예시 (가장 많이 거래된 면적 타입)
-  var sampleArea=c.trades.length>0?c.trades[0].excluUseAr:null;
-  var estSample=sampleArea?getEstSupply(sampleArea,c.buildYear):null;
-  var yr=parseInt(c.buildYear||'0');
-  var ratioUsed=yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
-
-  var html='';
-
-  // 섹션1: 기본 정보
-  html+='<div class="dsec"><div class="dsec-title">기본 정보</div>'+
-    '<div class="drow"><span class="dk">유형</span><span class="dv"><span class="badge '+(c.type==='아파트'?'b-apt':'b-oft')+'">'+c.type+'</span>'+
-      (c.presale?' <span class="badge b-presale" title="분양권전매 실거래 — 공급면적은 신축 전용률로 추정">준공 전 · 분양권</span>':'')+'</span></div>'+
-    (c.type==='아파트'?'<div class="drow"><span class="dk">분양형태</span><span class="dv" title="K-apt 기준">'+(c.saleType||(c._kapt==='none'?'K-apt 미등재':c._kapt==='loading'?'확인 중':'-'))+(c.kaptCnt?' · '+Number(c.kaptCnt).toLocaleString()+'세대':'')+'</span></div>':'')+
-    '<div class="drow"><span class="dk">법정동</span><span class="dv">'+c.dong+'</span></div>'+
-    '<div class="drow"><span class="dk">지번</span><span class="dv">'+lotCell(c)+'</span></div>'+
-    (c.aptSeq?'<div class="drow"><span class="dk">단지 고유번호</span><span class="dv" style="font-size:11px" title="국토교통부 단지 일련번호 — 이름이 같아도 이 번호로 구분한다">'+c.aptSeq+'</span></div>':'')+
-    (c.roadText?'<div class="drow"><span class="dk">도로명</span><span class="dv" style="font-size:11px;text-align:right;max-width:170px;line-height:1.4">'+roadAddr(c)+'</span></div>':'')+
-    '<div class="drow"><span class="dk">좌표 출처</span><span class="dv">'+geoSrcCell(c)+'</span></div>'+
-    '<div class="drow"><span class="dk">건축년도</span><span class="dv">'+(c.buildYear||'-')+'년</span></div>'+
-    '<div class="drow"><span class="dk">사업지 거리</span><span class="dv"><span class="badge b-dist">'+distText+'</span></span></div>'+
-    '<div class="drow"><span class="dk">총 매매건수</span><span class="dv blue">'+c.trades.length+'건</span></div>'+
-    '<div class="drow"><span class="dk">총 전월세건수</span><span class="dv">'+c.rents.length+'건</span></div>'+
-    '<div class="drow"><span class="dk">최초 거래</span><span class="dv" style="font-size:11px">'+firstD+'</span></div>'+
-    '<div class="drow"><span class="dk">최근 거래</span><span class="dv" style="font-size:11px">'+lastD+'</span></div>'+
-  '</div>';
-
-  // 섹션1.2: 이 단지의 분양 공고 (실거래와 같은 단지로 판정된 경우)
-  html+=renderBunyangSection(c);
-
-  // 섹션1.5: 건축개요 (총괄표제부 + 표제부)
-  html+=renderBuildingSection(c);
-
-  // 섹션2: 면적 정보 — 건축물대장 실측이 있으면 실측, 없으면 추정 (출처를 항상 표기)
-  html+=renderAreaSection(c,areas,sampleArea);
-
-  // 섹션3: 시세 요약
-  html+='<div class="dsec"><div class="dsec-title">시세 요약 (전용면적 기준)</div>'+
-    (avg?'<div class="drow"><span class="dk">평균 매매가</span><span class="dv blue">'+fmt(avg)+'만원</span></div>':'')+
-    (minV?'<div class="drow"><span class="dk">최저 매매가</span><span class="dv">'+fmt(minV)+'만원</span></div>':'')+
-    (maxV?'<div class="drow"><span class="dk">최고 매매가</span><span class="dv">'+fmt(maxV)+'만원</span></div>':'')+
-    (jAvg?'<div class="drow"><span class="dk">평균 전세가</span><span class="dv green">'+fmt(jAvg)+'만원</span></div>':'')+
-    (ratio?'<div class="drow"><span class="dk">전세가율</span><span class="dv"><span class="badge '+ratioClass+'">'+ratio+'%</span></span></div>':'')+
-  '</div>';
-
-  if(typeof renderPresaleSection==='function')html+=renderPresaleSection(c);
-
-  // 섹션4: 타입별 구성
-  if(typeRows.length>0){
-    html+='<div class="dsec"><div class="dsec-title">면적 타입별 거래 구성</div><div class="type-bars">';
-    typeRows.forEach(function(t,i){
-      var st=typeStat[t.key],pct=Math.round(st.count/maxCnt*100),avg2=st.count>0?Math.round(st.total/st.count):0;
-      html+='<div class="tbar-row" title="'+t.desc+'"><span class="tbar-lbl">'+st.label+'</span><div class="tbar-track"><div class="tbar-fill" style="width:'+pct+'%;background:'+barColors[i%barColors.length]+'"></div></div><span class="tbar-cnt">'+st.count+'건</span><span class="tbar-avg">'+(avg2?(avg2/10000).toFixed(1)+'억':'-')+'</span></div>';
-    });
-    html+='</div></div>';
-  }
-
-  // 섹션5: 전월세 현황
-  var jeonse=c.rents.filter(d=>d._rt==='전세'),wolse=c.rents.filter(d=>d._rt==='월세');
-  if(c.rents.length>0){
-    var wAmts=wolse.map(d=>parseInt((d.monthlyRent||'0').replace(/[^0-9]/g,''))||0).filter(v=>v>0);
-    var wAvg=wAmts.length?Math.round(wAmts.reduce((a,b)=>a+b,0)/wAmts.length):0;
-    html+='<div class="dsec"><div class="dsec-title">전월세 현황</div>'+
-      '<div class="drow"><span class="dk">전세 건수</span><span class="dv green">'+jeonse.length+'건</span></div>'+
-      (jAvg?'<div class="drow"><span class="dk">평균 전세가</span><span class="dv green">'+fmt(jAvg)+'만원</span></div>':'')+
-      '<div class="drow"><span class="dk">월세 건수</span><span class="dv purple">'+wolse.length+'건</span></div>'+
-      (wAvg?'<div class="drow"><span class="dk">평균 월세</span><span class="dv purple">'+fmt(wAvg)+'만원</span></div>':'')+
-    '</div>';
-  }
-
-  document.getElementById('dpBody').innerHTML=html;
-}
+// 우측 상세 패널(renderDetail)은 detail-panel.js로 옮겼다 (2026-10-09 패널 정리)
 
 // ── 요약 스트립 ──
 /* 하단 패널의 요약 숫자 띠는 없앴다.
@@ -4685,6 +4498,7 @@ bootstrap();
 </script>
 <script src="presale-core.js"></script>
 <script src="presale.js"></script>
+<script src="detail-panel.js"></script>
 <script src="report-core.js"></script>
 <script src="report.js"></script>
 <script src="report-view.js"></script>

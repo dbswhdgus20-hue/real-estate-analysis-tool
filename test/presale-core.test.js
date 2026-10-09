@@ -20,7 +20,7 @@ test('주택형 응답을 읽는다 — 세대는 일반공급+특별공급, 금
   assert.deepEqual(m[0], { ty: '084.9752A', label: '84A', ex: 84.9752, sup: 113.5344, supPy: 34.34, hh: 149, top: 582300 });
 });
 
-test('PH 기준: 평당 분양가가 대표 평형보다 20% 이상 비싸고 세대 비중이 2% 미만이면 제외', () => {
+test('PH 기준: 평당 분양가가 대표 평형보다 30% 이상 비싸고 세대 비중이 2% 미만이면 제외', () => {
   const r = P.repPrice(P.parseModels(RAW), BAND84);
   assert.deepEqual(r.models.filter((x) => x.ph).map((x) => x.label), ['175', '191']);   // 평당 +95%, 비중 0.1~0.3%
   assert.equal(r.models.find((x) => x.label === '105').ph, false);                     // 평당 +17%, 비중 22% — 일반 대형
@@ -32,6 +32,7 @@ test('비싸도 세대가 많으면(일반 대형), 세대가 적어도 평당�
     { HOUSE_TY: '084.0000T', SUPLY_AR: '112', SUPLY_HSHLDCO: 3, LTTOT_TOP_AMOUNT: '51500' },     // 평당 +3% 테라스
     { HOUSE_TY: '134.0000', SUPLY_AR: '178', SUPLY_HSHLDCO: 40, LTTOT_TOP_AMOUNT: '100000' },    // 평당 +26%, 비중 11.7%
     { HOUSE_TY: '084.0000P', SUPLY_AR: '112', SUPLY_HSHLDCO: 2, LTTOT_TOP_AMOUNT: '70000' },     // 평당 +40%, 비중 0.6%
+    { HOUSE_TY: '120.0000', SUPLY_AR: '160', SUPLY_HSHLDCO: 3, LTTOT_TOP_AMOUNT: '91000' },     // 평당 +27%, 비중 0.9% — 30% 미만이라 남는다
   ];
   const r = P.repPrice(P.parseModels(raw), BAND84);
   assert.deepEqual(r.models.filter((x) => x.ph).map((x) => x.label), ['84P']);
