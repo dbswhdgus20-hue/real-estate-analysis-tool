@@ -69,7 +69,9 @@ function rptSilvTable(st) {
     '</th><th>' + rptYY(y[2]) + '가격</th><th>' + rptYY(y[2]) + '건수</th><th>분양가 대비</th></tr></thead><tbody>' + body +
     '<tr class="rpt-total"><td></td><td colspan="7">' + rptEsc(foot) + '</td><td class="num rpt-strong">' + rptN(s.cur.avg) + '</td><td class="num">' + s.cur.cnt +
     '</td><td></td></tr></tbody></table>' +
-    '<p class="rpt-foot">최초 분양가 = 청약홈 공고의 대표 평형(전용 ' + rptState.o.band + '㎡) 주택형별 최고 분양가를 세대수로 가중 평균 (펜트하우스 등 ' + PresaleCore.PH_MAX_HH +
+    '<p class="rpt-foot">최초 분양가 = 청약홈 공고의 대표 평형(전용 ' + rptState.o.band + '㎡, 없으면 세대가 가장 많은 평형) 주택형별 최고 분양가를 세대수로 가중 평균 ' +
+    '(발코니 확장 별도). PH 제외 = 평당 분양가가 대표 평형보다 ' + Math.round(PresaleCore.PH_PREMIUM * 100) + '% 이상 비싸고 세대가 공고의 ' + Math.round(PresaleCore.PH_SHARE * 100) + '% 미만인 주택형. ' +
+    '분양가 대비 = 최근 거래 평균 ÷ 최초 분양가 − 1. 세대수·분양 = 공고의 공급세대·모집공고 연월.</p>';
     '세대 이하 주택형 제외, 발코니 확장 별도). 분양가 대비 = 최근 거래 평균 ÷ 최초 분양가 − 1. 세대수·분양 = 공고의 공급세대·모집공고 연월.</p>';
 }
 

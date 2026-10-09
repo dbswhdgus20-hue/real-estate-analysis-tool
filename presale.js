@@ -6,9 +6,9 @@
    index.html 전역(allComplexes, curComplex, PROXY_BASE, API_MODE, qs, runPool, lsGetT, lsSetT,
    refreshPriceFor, renderDetail, renderTable)을 쓴다.
    ══════════════════════════════════════════════════════════════ */
-var MDL_LS = 'kirt.mdl.v1.';
+var MDL_LS = 'kirt.mdl.v2.';   // v2: 세대 = 일반+특별공급 (v1은 일반공급만)
 var MDL_TTL = 30 * 24 * 3600 * 1000;          // 공고 주택형은 바뀌지 않으므로 30일 보관
-var PRESALE_BAND = { lo: 83, hi: 86, label: '84㎡' };   // 대표 평형 — 전용 84㎡ 대역
+var PRESALE_BAND = { lo: 83, hi: 86 };   // 대표 평형 — 전용 84㎡ 대역 (공고에 없으면 세대가 가장 많은 평형)
 var APPLYHOME_URL = /^https:\/\/www\.applyhome\.co\.kr\//;
 var presaleGen = 0;
 
@@ -67,13 +67,13 @@ function presaleSupply(c, excluUseAr) {
 
 // 대표 평형 거래들의 평균 거래가·프리미엄
 function presaleTradeStats(c) {
-  var rows = (c.trades || []).filter(function (d) {
-    var a = parseFloat(d.excluUseAr);
-    return a >= PRESALE_BAND.lo && a < PRESALE_BAND.hi;
-  });
+  var rep = c._initRep;
+  if (!rep) return null;
   var prem = [], amts = [];
-  rows.forEach(function (d) {
-    var p = PresaleCore.premium(d.dealAmount, PresaleCore.matchModel(c._models || [], d.excluUseAr));
+  (c.trades || []).forEach(function (d) {
+    var m = PresaleCore.matchModel(rep.models, d.excluUseAr);
+    if (!m || m.ph || rep.types.indexOf(m.label) === -1) return;     // 대표 평형 주택형 거래만, PH 제외
+    var p = PresaleCore.premium(d.dealAmount, m);
     if (p) { prem.push(p); amts.push(p.amt + p.init); }
   });
   if (!prem.length) return null;
@@ -93,23 +93,27 @@ function renderPresaleSection(c) {
     return head + '<div class="drow"><span style="font-size:11px;color:var(--ui-ink-3)">' + msg + '</span></div></div>';
   }
   var rep = c._initRep, st = presaleTradeStats(c);
-  var rows = c._models.map(function (m) {
-    return '<tr' + (m.ph ? ' class="ps-ph" title="세대 ' + PresaleCore.PH_MAX_HH + '개 이하 — 펜트하우스·특수형으로 보고 대표 분양가에서 제외"' : '') + '>' +
-      '<td>' + psEsc(m.label) + (m.ph ? ' <span class="ps-x">제외</span>' : '') + '</td>' +
-      '<td class="r">' + m.supPy.toFixed(1) + '</td><td class="r">' + m.hh + '</td><td class="r">' + psMan(m.top) + '</td></tr>';
+  var phTip = '평당 분양가가 대표 평형보다 ' + Math.round(PresaleCore.PH_PREMIUM * 100) + '% 이상 비싸고 세대가 공고의 ' +
+    Math.round(PresaleCore.PH_SHARE * 100) + '% 미만 — 펜트하우스·최상층 특화로 보고 대표 분양가·프리미엄에서 제외';
+  var rows = (rep ? rep.models : c._models).map(function (m) {
+    var isRep = rep && rep.types.indexOf(m.label) !== -1 && !m.ph;
+    return '<tr' + (m.ph ? ' class="ps-ph" title="' + phTip + '"' : isRep ? ' class="ps-rep" title="대표 평형"' : '') + '>' +
+      '<td>' + psEsc(m.label) + (m.ph ? ' <span class="ps-x">PH 제외</span>' : '') + '</td>' +
+      '<td class="r">' + m.hh + '</td><td class="r">' + psMan(m.top) + '</td><td class="r">' + (m.ppy ? psMan(m.ppy) : '-') + '</td></tr>';
   }).join('');
   var url = APPLYHOME_URL.test(String(d.PBLANC_URL || '')) ? d.PBLANC_URL : '';
   return head +
-    (rep ? '<div class="drow"><span class="dk">대표 평형 ' + PRESALE_BAND.label + '</span><span class="dv" style="color:#6A2C00">' +
+    (rep ? '<div class="drow"><span class="dk">대표 평형 ' + rep.groupLabel + '</span><span class="dv" style="color:#6A2C00">' +
       psMan(rep.price) + '만원</span></div>' +
-      '<div class="drow"><span class="dk">평당 (공급)</span><span class="dv">' + psMan(rep.py) + '만원 · ' + rep.types.join('·') +
-      (rep.fallback ? ' <span class="badge b-warn" title="84㎡ 주택형이 없어 세대가 가장 많은 주택형 기준">대체</span>' : '') + '</span></div>' : '') +
+      '<div class="drow"><span class="dk">평당 (공급)</span><span class="dv">' + psMan(rep.py) + '만원 · ' + rep.types.join('·') + '</span></div>' : '') +
     (st ? '<div class="drow"><span class="dk">분양권 거래 평균</span><span class="dv blue">' + psMan(st.avgAmt) + '만원 · ' + st.n + '건</span></div>' +
       '<div class="drow"><span class="dk">프리미엄</span><span class="dv"><b>' + psSigned(Math.round(st.avgPrem / 10)) + '만원</b> (' + psSigned(st.avgPct) + '%)</span></div>' : '') +
-    '<table class="ps-tbl"><thead><tr><th>주택형</th><th class="r">공급평</th><th class="r">세대</th><th class="r">최고 분양가(만)</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<table class="ps-tbl"><thead><tr><th>주택형</th><th class="r">세대</th><th class="r">최고 분양가(만)</th><th class="r">평당(만)</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="drow"><span class="dk">공고</span><span class="dv" style="font-size:11px">' + psEsc(d.HOUSE_NM || '') + (d.RCRIT_PBLANC_DE ? ' · ' + psEsc(d.RCRIT_PBLANC_DE) : '') + '</span></div>' +
     (url ? '<div class="drow"><span class="dk"></span><a href="' + psEsc(url) + '" target="_blank" rel="noopener" style="font-size:11px;color:#41548B;font-weight:600">공고문 보기</a></div>' : '') +
-    '<div class="drow"><span style="font-size:10.5px;color:var(--ui-ink-3);line-height:1.5">분양가는 주택형별 최고가(발코니 확장 별도). 프리미엄 = 거래가 − 같은 주택형 분양가</span></div>' +
+    '<div class="drow"><span style="font-size:10.5px;color:var(--ui-ink-3);line-height:1.5">분양가는 주택형별 최고가(발코니 확장 별도). 대표 평형 = 84㎡(없으면 세대가 가장 많은 평형). ' +
+      'PH 제외 = 평당 분양가 대표 평형 대비 +' + Math.round(PresaleCore.PH_PREMIUM * 100) + '% 이상이면서 세대 ' + Math.round(PresaleCore.PH_SHARE * 100) + '% 미만. ' +
+      '프리미엄 = 거래가 − 같은 주택형 분양가</span></div>' +
     '</div>';
 }
 
