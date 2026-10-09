@@ -213,7 +213,7 @@ async function rptFetchSilv(o, run) {
   var need = rptNeedRange(o.baseYear), months = getMonths((o.baseYear - 2) + '01', need.end);
   var lawds = o.scope === 'radius' ? run.lawds : [run.lawd], tasks = [];
   lawds.forEach(function (l) { months.forEach(function (m) { tasks.push({ l: l, m: m }); }); });
-  var fields = ['aptNm', 'umdNm', 'dealAmount', 'excluUseAr', 'dealYear', 'dealMonth', 'dealDay', 'cdealType', 'dealingGbn', 'ownershipGbn', 'sggCd'];
+  var fields = ['aptNm', 'umdNm', 'jibun', 'dealAmount', 'excluUseAr', 'dealYear', 'dealMonth', 'dealDay', 'cdealType', 'dealingGbn', 'ownershipGbn', 'sggCd'];
   var errors = {}, rows = [], stopped = '';
   async function one(t) {
     if (stopped) throw new Error(stopped);
@@ -238,6 +238,38 @@ async function rptFetchSilv(o, run) {
   return { rows: rows, partial: errList.length > 0 };
 }
 
+/* ── ③ 분양권 단지의 최초 분양가 ── 청약홈 공고(본공고·세대 많은 것)를 찾아 대표 평형 분양가를 붙인다 */
+function rptFindNotice(r) {
+  var n = normHouseName(r.name), best = null;
+  (allBunyang || []).forEach(function (d) {
+    var dn = dongOfAddr(d.HSSPLY_ADRES);
+    if (dn && r.dong && dn !== r.dong) return;
+    var a = normHouseName(d.HOUSE_NM);
+    var exact = a === n, part = a.length >= 4 && n.length >= 4 && (a.indexOf(n) !== -1 || n.indexOf(a) !== -1);
+    if (!exact && !part) return;
+    var score = (exact ? 2 : 1) * 1e6 + (Number(d.TOT_SUPLY_HSHLDCO) || 0);   // 이름 완전 일치 > 세대 많은 본공고
+    if (!best || score > best.s) best = { d: d, s: score };
+  });
+  return best && best.d;
+}
+async function rptAttachInit(silv, o) {
+  if (!silv || !silv.rows.length || API_MODE !== 'proxy' || typeof PresaleCore === 'undefined') return '';
+  for (var i = 0; i < 40 && !bunyangLoaded; i++) await sleepMs(500);   // 분석 직후면 청약홈 목록이 아직 오는 중일 수 있다
+  var band = RptCore.BANDS[o.band], missing = 0, failed = 0;
+  await runPool(silv.rows, async function (r) {
+    var d = rptFindNotice(r);
+    if (!d) { missing++; return; }
+    r.notice = { ym: String(d.RCRIT_PBLANC_DE || '').slice(0, 7).replace('-', '.'), hh: Number(d.TOT_SUPLY_HSHLDCO) || null };
+    try { r.init = PresaleCore.repPrice(await loadModels(d.HOUSE_MANAGE_NO), band); }
+    catch (e) { failed++; console.warn('[심의 보고서] 분양가 조회 실패 ' + r.name + ' → ' + e.message); }
+  }, 2);
+  silv.premAvg = RptCore.silvPremium(silv);
+  var msg = [];
+  if (missing) msg.push('분양권 단지 ' + missing + '곳은 청약홈 공고를 찾지 못해 최초 분양가를 비웠습니다');
+  if (failed) msg.push(failed + '곳은 분양가 조회에 실패했습니다');
+  return msg.join(', ') + (msg.length ? '.' : '');
+}
+
 /* ── 실행 ── */
 async function runReport() {
   if (rptBusy) return;
@@ -259,7 +291,13 @@ async function runReport() {
     if (o.silv) {
       var s = await rptFetchSilv(o, run);
       if (s.error) silvErr = s.error;
-      else { silv = RptCore.summarizeSilv(s.rows, o); if (s.partial) notes.push('분양권 실거래 일부 구간을 받지 못했습니다.'); }
+      else {
+        silv = RptCore.summarizeSilv(s.rows, o);
+        if (s.partial) notes.push('분양권 실거래 일부 구간을 받지 못했습니다.');
+        setStatus('loading', '분양권 단지의 최초 분양가 확인 중 (청약홈)');
+        var pn = await rptAttachInit(silv, o);
+        if (pn) notes.push(pn);
+      }
     }
     if (run.missing) notes.push('실거래 수집 중 누락 구간이 ' + run.missing + '건 있습니다 (콘솔 확인).');
     var text = RptCore.narrative(rep, silv, Object.assign({}, o, { guName: run.gu, siteDong: run.dong }));

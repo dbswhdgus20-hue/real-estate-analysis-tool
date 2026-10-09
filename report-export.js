@@ -114,13 +114,16 @@ function rptDocxSilv(k, st) {
   if (!st.silv) return k.para(st.silvErr || '분양권 실거래를 포함하지 않았습니다.', { run: { color: '666666' } });
   if (!st.silv.rows.length) return k.para('조건에 맞는 분양권 거래가 없습니다.', { run: { color: '666666' } });
   var s = st.silv, y = s.years;
+  var pct = function (v) { return v == null ? '-' : (v > 0 ? '+' : '') + v + '%'; };
   var rows = s.rows.map(function (r) {
-    return [k.cell(r.no, { num: true }), k.cell(r.name), k.cell(r.dong), k.cell(rptN(r.byYear[y[0]].avg), { num: true }),
-      k.cell(rptN(r.byYear[y[1]].avg), { num: true }), k.cell(rptN(r.cur.avg), { num: true, bold: true }), k.cell(r.cur.cnt, { num: true })];
+    return [k.cell(r.no, { num: true }), k.cell(r.name), k.cell(rptN(r.notice && r.notice.hh), { num: true }), k.cell((r.notice && r.notice.ym) || '-', { center: true }),
+      k.cell(rptN(r.init && r.init.price), { num: true, bold: true }),
+      k.cell(rptN(r.byYear[y[0]].avg), { num: true }), k.cell(rptN(r.byYear[y[1]].avg), { num: true }), k.cell(rptN(r.cur.avg), { num: true, bold: true }),
+      k.cell(r.cur.cnt, { num: true }), k.cell(pct(r.premPct), { num: true, color: r.premPct > 0 ? 'C00000' : undefined })];
   });
-  rows.push([k.cell(''), k.cell(y[2] + '년 평균' + (s.ratio ? ' (본건 약 ' + s.ratio + '%)' : ''), { bold: true }), k.cell(''), k.cell(''), k.cell(''),
-    k.cell(rptN(s.cur.avg), { num: true, bold: true }), k.cell(s.cur.cnt, { num: true, bold: true })]);
-  return k.table(['No', '단지명', '법정동', String(y[0]), String(y[1]), rptYY(y[2]) + '가격', rptYY(y[2]) + '건수'], rows);
+  rows.push([k.cell(''), k.cell(y[2] + '년 평균' + (s.ratio ? ' (본건 약 ' + s.ratio + '%)' : ''), { bold: true }), k.cell(''), k.cell(''), k.cell(''), k.cell(''), k.cell(''),
+    k.cell(rptN(s.cur.avg), { num: true, bold: true }), k.cell(s.cur.cnt, { num: true, bold: true }), k.cell(pct(s.premAvg), { num: true, bold: true })]);
+  return k.table(['No', '단지명', '세대수', '분양', '최초 분양가', String(y[0]), String(y[1]), rptYY(y[2]) + '가격', rptYY(y[2]) + '건수', '분양가 대비'], rows);
 }
 function rptDocxBody(k, st) {
   var o = st.o, m = st.meta, rep = st.rep, H = function (t) { return k.para(t, { run: { bold: true, size: 22 }, spacing: { before: 280, after: 120 } }); };

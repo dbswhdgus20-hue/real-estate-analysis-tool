@@ -55,14 +55,22 @@ function rptSilvTable(st) {
   if (!s.rows.length) return '<p class="rpt-empty">조건에 맞는 분양권 거래가 없습니다.</p>';
   var y = s.years;
   var body = s.rows.map(function (r) {
+    var pc = r.premPct == null ? '-' : (r.premPct > 0 ? '+' : '') + r.premPct + '%';
     return '<tr><td class="num">' + r.no + '</td><td>' + rptEsc(r.name) + '</td><td>' + rptEsc(r.dong) + '</td>' +
+      '<td class="num">' + rptN(r.notice && r.notice.hh) + '</td><td class="num">' + rptEsc((r.notice && r.notice.ym) || '-') + '</td>' +
+      '<td class="num rpt-strong">' + rptN(r.init && r.init.price) + '</td>' +
       '<td class="num">' + rptN(r.byYear[y[0]].avg) + '</td><td class="num">' + rptN(r.byYear[y[1]].avg) + '</td>' +
-      '<td class="num rpt-strong">' + rptN(r.cur.avg) + '</td><td class="num">' + r.cur.cnt + '</td></tr>';
+      '<td class="num rpt-strong">' + rptN(r.cur.avg) + '</td><td class="num">' + r.cur.cnt + '</td>' +
+      '<td class="num' + (r.premPct > 0 ? ' rpt-hi' : '') + '">' + pc + '</td></tr>';
   }).join('');
-  return '<table class="rpt-table"><thead><tr><th>No</th><th>단지명</th><th>법정동</th><th>' + y[0] + '</th><th>' + y[1] +
-    '</th><th>' + rptYY(y[2]) + '가격</th><th>' + rptYY(y[2]) + '건수</th></tr></thead><tbody>' + body +
-    '<tr class="rpt-total"><td></td><td colspan="4">' + y[2] + '년 분양권 평균' + (s.ratio ? ' · 본건은 약 ' + s.ratio + '% 수준' : '') +
-    '</td><td class="num rpt-strong">' + rptN(s.cur.avg) + '</td><td class="num">' + s.cur.cnt + '</td></tr></tbody></table>';
+  var foot = y[2] + '년 분양권 평균' + (s.premAvg != null ? ' · 최초 분양가 대비 평균 ' + (s.premAvg > 0 ? '+' : '') + s.premAvg + '%' : '') +
+    (s.ratio ? ' · 본건은 약 ' + s.ratio + '% 수준' : '');
+  return '<table class="rpt-table"><thead><tr><th>No</th><th>단지명</th><th>법정동</th><th>세대수</th><th>분양</th><th>최초 분양가</th><th>' + y[0] + '</th><th>' + y[1] +
+    '</th><th>' + rptYY(y[2]) + '가격</th><th>' + rptYY(y[2]) + '건수</th><th>분양가 대비</th></tr></thead><tbody>' + body +
+    '<tr class="rpt-total"><td></td><td colspan="7">' + rptEsc(foot) + '</td><td class="num rpt-strong">' + rptN(s.cur.avg) + '</td><td class="num">' + s.cur.cnt +
+    '</td><td></td></tr></tbody></table>' +
+    '<p class="rpt-foot">최초 분양가 = 청약홈 공고의 대표 평형(전용 ' + rptState.o.band + '㎡) 주택형별 최고 분양가를 세대수로 가중 평균 (펜트하우스 등 ' + PresaleCore.PH_MAX_HH +
+    '세대 이하 주택형 제외, 발코니 확장 별도). 분양가 대비 = 최근 거래 평균 ÷ 최초 분양가 − 1. 세대수·분양 = 공고의 공급세대·모집공고 연월.</p>';
 }
 
 function renderReport() {
@@ -149,10 +157,15 @@ function rptSilvSheet(st) {
   var R = [['최근 3개년 분양권 실거래가격 평균'], ['단위 천원']];
   if (!st.silv) { R.push([st.silvErr || '분양권 실거래를 포함하지 않았습니다.']); return rptSheet(R, [60], {}); }
   var y = st.silv.years;
-  R.push([], ['No', '단지명', '법정동', String(y[0]), String(y[1]), rptYY(y[2]) + '가격', rptYY(y[2]) + '건수']);
-  st.silv.rows.forEach(function (r) { R.push([r.no, r.name, r.dong, r.byYear[y[0]].avg, r.byYear[y[1]].avg, r.cur.avg, r.cur.cnt]); });
-  R.push(['', y[2] + '년 분양권 평균', '', '', '', st.silv.cur.avg, st.silv.cur.cnt]);
-  return rptSheet(R, [5, 26, 10, 12, 12, 12, 8], { 3: '#,##0', 4: '#,##0', 5: '#,##0' });
+  R.push([], ['No', '단지명', '법정동', '세대수', '분양', '최초 분양가', String(y[0]), String(y[1]), rptYY(y[2]) + '가격', rptYY(y[2]) + '건수', '분양가 대비']);
+  st.silv.rows.forEach(function (r) {
+    var row = R.length + 1, lat = r.cur.cnt ? 'I' : r.byYear[y[1]].cnt ? 'H' : 'G';
+    R.push([r.no, r.name, r.dong, (r.notice && r.notice.hh) || null, (r.notice && r.notice.ym) || '', (r.init && r.init.price) || null,
+      r.byYear[y[0]].avg, r.byYear[y[1]].avg, r.cur.avg, r.cur.cnt,
+      { v: r.premPct == null ? null : r.premPct / 100, f: 'IF(OR(F' + row + '="",' + lat + row + '=""),"",' + lat + row + '/F' + row + '-1)', z: '0.0%' }]);
+  });
+  R.push(['', y[2] + '년 분양권 평균', '', '', '', '', '', '', st.silv.cur.avg, st.silv.cur.cnt, st.silv.premAvg == null ? null : { v: st.silv.premAvg / 100, z: '0.0%' }]);
+  return rptSheet(R, [5, 26, 10, 8, 9, 13, 12, 12, 12, 8, 10], { 3: '#,##0', 5: '#,##0', 6: '#,##0', 7: '#,##0', 8: '#,##0' });
 }
 function exportReportExcel() {
   if (!rptState) return;

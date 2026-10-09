@@ -178,6 +178,12 @@ button{font-family:inherit}
   background:#fff;color:var(--kirt-brown);border:1px solid var(--kirt-brown);vertical-align:1px}
 .complex-label.presale .cl-box{outline:2px dashed var(--kirt-brown);outline-offset:1px}
 .badge.b-presale{background:#fff;color:var(--kirt-brown);border:1px solid var(--kirt-brown)}
+/* 상세 패널 — 최초 분양가 주택형 표 */
+.ps-tbl{width:100%;margin:6px 0 4px;font-size:11px}
+.ps-tbl th{position:static;font-size:10px}
+.ps-tbl td{padding:2px 6px}
+.ps-tbl tr.ps-ph td{color:var(--ui-ink-3)}
+.ps-x{font-size:9px;padding:0 3px;border:1px solid var(--ui-ink-3);color:var(--ui-ink-3)}
 
 /* ══════════ 메인 ══════════ */
 .main{flex:1;display:flex;min-height:0;overflow:hidden}
@@ -934,7 +940,7 @@ function pyPrice(c,rows){
     else{
       var sp=supplyOf(c,d.excluUseAr);
       if(!sp||!(sp.supply>0))return;
-      if(sp.src!=='ledger')est=true;
+      if(sp.src!=='ledger'&&sp.src!=='notice')est=true;
       py=sp.supply/PY_M2;
     }
     sum+=amt/py;n++;
@@ -2492,6 +2498,9 @@ function refreshComplexViews(){
 function supplyOf(c,excluUseAr){
   var v=parseFloat(excluUseAr||'0');
   if(!(v>0))return null;
+  // 준공 전 단지는 청약홈 공고의 실제 공급면적 (presale.js)
+  var ps=typeof presaleSupply==='function'?presaleSupply(c,excluUseAr):null;
+  if(ps)return ps;
   if(c&&c._ledger&&typeof c._ledger==='object'){
     var m=matchSupply(c._ledger.table,v);
     if(m)return {
@@ -2509,7 +2518,7 @@ function supplyOf(c,excluUseAr){
 }
 function supplySrcLabel(s){
   if(!s)return '-';
-  return s.src==='ledger'?(s.loose?'대장(근사)':'대장'):'추정';
+  return s.src==='ledger'?(s.loose?'대장(근사)':'대장'):s.src==='notice'?'분양공고':'추정';
 }
 // 선택 단지 전부의 대장을 미리 받아둔다 (Excel 내보내기 직전)
 // ── K-apt 분양형태 (분양/임대/혼합) ──
@@ -3165,7 +3174,9 @@ async function runAnalysis(){
     var cMap={};
     function ensure(d){
       var seq=String(d.aptSeq||'').trim();
-      var key=d._presale?('P|'+(d.aptNm||'-')+'|'+(d.umdNm||''))     // 분양권은 따로 묶었다가 준공 여부로 거른다
+      // 분양권은 따로 묶었다가 준공 여부로 거른다. 같은 단지가 「천안 백석 센트레빌」·「천안백석센트레빌」처럼
+      // 표기가 달라지므로 법정동+지번으로 묶는다 (지번이 없으면 띄어쓰기 뺀 이름). 표시 이름은 fixNames가 최빈 표기로 정한다
+      var key=d._presale?('P|'+(d.umdNm||'')+'|'+(String(d.jibun||'').trim()?'#'+String(d.jibun).trim():String(d.aptNm||'-').replace(/\s+/g,'')))
         :seq?('#'+seq+'|'+d._type):((d.aptNm||'-')+'|'+(d.umdNm||'')+'|'+d._type);
       if(!cMap[key])cMap[key]={key:key,name:d.aptNm,dong:d.umdNm,type:d._type,buildYear:d.buildYear,
                                trades:[],rents:[],_lots:{},_seqs:{},_roads:{},_names:{}};
@@ -3561,7 +3572,7 @@ async function exportExcel(){
   T.push(['분석일 '+ymdDot+' · 조회기간 '+period+' · 반경 '+rText+' · 선택 '+keys.length+'개 단지']);
   T.push(['단위: 천원 · 평당가 = 거래금액 ÷ 기준면적(평) — 아파트는 공급면적, 오피스텔은 전용면적 · 공급면적은 건축물대장 실측(없으면 건축년도별 전용률로 추정)']);
   T.push([]);
-  T.push(['단지명','유형','평형','거래일','동','층','전용면적(㎡)','공급면적(㎡)','기준면적(평)','거래금액(천원)','평당가(천원/평)','면적 출처','거래유형']);
+  T.push(['단지명','유형','평형','거래일','동','층','전용면적(㎡)','공급면적(㎡)','기준면적(평)','거래금액(천원)','평당가(천원/평)','면적 출처','거래유형','최초 분양가(천원)','프리미엄(천원)']);
   // 열: A단지 B유형 C평형 D거래일 E동 F층 G전용 H공급 I기준평 J거래금액 K평당가 L출처
   var tradeRef={};   // 요약 시트가 참조할 소계 위치
   keys.forEach(function(key){
@@ -3576,13 +3587,17 @@ async function exportExcel(){
       var s=T.length, js=[], ks=[], pys=[];
       g.list.forEach(function(d){
         var r=T.length, amt=K(d.dealAmount), b=basisOf(c,d), ar=parseFloat(d.excluUseAr);
+        // 준공 전 단지: 같은 주택형의 최초 분양가(청약홈 최고가)와 프리미엄(수식)
+        var pm=c.presale&&c._models&&typeof PresaleCore!=='undefined'?PresaleCore.matchModel(c._models,d.excluUseAr):null;
+        var init=pm&&pm.top>0?pm.top:null;
         var py=b.py?Math.round(b.py*10)/10:null;
         var ppy=(amt&&py)?Math.round(amt/py):null;
         if(amt)js.push(amt); if(ppy)ks.push(ppy); if(py)pys.push(py);
         T.push([c.name,c.presale?'분양권':c.type,g.label,dt(d),d.aptDong||'',d.floor?parseInt(d.floor):'',
           ar, b.sup?b.sup.supply:(c.type==='오피스텔'?'':null), py,
           amt||null, py&&amt?{v:ppy,f:'IF(I'+(r+1)+'>0,ROUND(J'+(r+1)+'/I'+(r+1)+',0),"")',z:NUM}:null, b.src,
-          isDirectDeal(d)?'직거래':(d.dealingGbn?'중개거래':'')]);
+          isDirectDeal(d)?'직거래':(d.dealingGbn?'중개거래':''),
+          init, init&&amt?{v:amt-init,f:'IF(N'+(r+1)+'="","",J'+(r+1)+'-N'+(r+1)+')',z:NUM}:null]);
       });
       var e=T.length-1, rr=T.length;
       ranges.push([s,e]); allJ=allJ.concat(js); allK=allK.concat(ks);
@@ -3602,7 +3617,7 @@ async function exportExcel(){
     T.push([]);
     tradeRef[key]={groups:gRef,total:tr,cnt:allJ.length,j:allJ,k:allK,ranges:ranges,rg:rg};
   });
-  var wsT=toSheet(T,{6:AREA,7:AREA,8:PY,9:NUM,10:NUM},[24,8,20,11,7,5,11,11,11,14,14,10,9],[{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}},{s:{r:2,c:0},e:{r:2,c:12}}].concat(tm));
+  var wsT=toSheet(T,{6:AREA,7:AREA,8:PY,9:NUM,10:NUM,13:NUM,14:NUM},[24,8,20,11,7,5,11,11,11,14,14,10,9,14,13],[{s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}},{s:{r:2,c:0},e:{r:2,c:12}}].concat(tm));
 
   // ════════════════ 단지·평형 요약 (매매 상세의 평균을 그대로 참조) ════════════════
   var S=[], sm=[];
@@ -3997,6 +4012,7 @@ async function renderBunyangInRadius(){
   }
   updateOverlay();
   scheduleDeclutter();
+  if(typeof applyPresaleModels==='function')applyPresaleModels();   // 준공 전 단지에 최초 분양가 붙이기
 }
 
 /* 분양 공고와 실거래 단지가 같은 곳인지 — 이름과 거리를 같이 본다.
@@ -4402,6 +4418,8 @@ function renderDetail(){
     (ratio?'<div class="drow"><span class="dk">전세가율</span><span class="dv"><span class="badge '+ratioClass+'">'+ratio+'%</span></span></div>':'')+
   '</div>';
 
+  if(typeof renderPresaleSection==='function')html+=renderPresaleSection(c);
+
   // 섹션4: 타입별 구성
   if(typeRows.length>0){
     html+='<div class="dsec"><div class="dsec-title">면적 타입별 거래 구성</div><div class="type-bars">';
@@ -4470,6 +4488,11 @@ function renderFilter(){
 /* 공급면적이 실측인지 추정인지 — 예전엔 줄 하나를 따로 썼다.
    208px 패널에서 그 한 줄이 표 한 행과 맞먹어, 배지로 줄이고 설명은 툴팁에 담았다. */
 function supplySrcBadge(c){
+  if(c.presale){
+    return c._models
+      ? '<span class="badge b-apt" title="공급면적 = 청약홈 분양 공고의 주택형별 공급면적">공급 분양공고</span>'
+      : '<span class="badge b-warn" title="분양 공고를 찾기 전까지 신축 전용률 76%로 추정">공급 추정 76%</span>';
+  }
   var yr=parseInt(c.buildYear||'0');
   var ru=yr>0?(yr<=1995?62:yr<=2000?67:yr<=2005?70:yr<=2010?73:76):72;
   var led=c._ledger;
@@ -4508,6 +4531,7 @@ function renderTable(){
       '<th class="r">전용㎡</th><th class="r">전용평</th>'+
       '<th class="r">공급㎡</th><th class="r">공급평</th>'+
       '<th>층</th><th>거래</th><th class="r">거래금액(만)</th><th class="r">전용평당(만)</th>'+
+      (typeof presaleHeadCells==='function'?presaleHeadCells(curComplex):'')+
       '</tr></thead><tbody>'+
       sorted.map(function(d){
         var amt=parseInt((d.dealAmount||'0').replace(/[^0-9]/g,''))||0;
@@ -4528,6 +4552,7 @@ function renderTable(){
           '<td>'+(isDirectDeal(d)?'<span class="badge b-warn" title="중개사를 거치지 않은 거래">직거래</span>':(d.dealingGbn?'<span style="color:var(--ui-ink-3);font-size:10.5px">중개</span>':'-'))+'</td>'+
           '<td class="r" style="font-weight:700;color:#41548B">'+fmt(amt)+'</td>'+
           '<td class="r">'+(py?fmt(py):'-')+'</td>'+
+          (typeof presaleRowCells==='function'?presaleRowCells(curComplex,d):'')+
           '</tr>';
       }).join('')+'</tbody></table>';
   }else{
@@ -4657,6 +4682,8 @@ initKeyboard();
 initBottomResize();
 bootstrap();
 </script>
+<script src="presale-core.js"></script>
+<script src="presale.js"></script>
 <script src="report-core.js"></script>
 <script src="report.js"></script>
 <script src="report-view.js"></script>

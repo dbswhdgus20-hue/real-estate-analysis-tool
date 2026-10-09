@@ -86,6 +86,44 @@ test('분양권: 단지별로 묶어 최근 3개년 평균과 본건 비율을 �
   assert.equal(s.ratio, Math.round(580000 / s.cur.avg * 100));
 });
 
+test('분양권: 같은 단지가 이름 표기만 다르면(띄어쓰기·별칭) 법정동+지번으로 하나로 묶는다', () => {
+  const rows = [
+    { aptNm: '천안 백석 센트레빌 파크디션', umdNm: '백석동', jibun: '1022', ...trade(2023, 48644) },
+    { aptNm: '천안백석센트레빌파크디션', umdNm: '백석동', jibun: '1022', ...trade(2024, 48181) },
+    { aptNm: '천안백석센트레빌파크디션', umdNm: '백석동', jibun: '1022', ...trade(2024, 47272) },
+    { aptNm: '부성역우남퍼스트빌', umdNm: '부대동', jibun: '', ...trade(2024, 41546) },
+    { aptNm: '부성역 우남퍼스트빌', umdNm: '부대동', ...trade(2024, 41000) },
+  ];
+  const s = R.summarizeSilv(rows, OPTS);
+  assert.equal(s.rows.length, 2);
+  const cv = s.rows.find((r) => r.dong === '백석동');
+  assert.equal(cv.name, '천안백석센트레빌파크디션');          // 가장 많이 쓰인 표기
+  assert.equal(cv.total, 3);
+  assert.equal(s.rows.find((r) => r.dong === '부대동').total, 2);   // 지번이 없으면 띄어쓰기 뺀 이름으로
+});
+
+test('분양권: 최초 분양가가 붙은 단지만으로 평균 프리미엄(%)을 거래 건수 가중으로 낸다', () => {
+  const rows = [
+    { no: 1, name: 'A', latest: 550000, total: 3, init: { price: 500000 } },   // +10%
+    { no: 2, name: 'B', latest: 480000, total: 1, init: { price: 500000 } },   // -4%
+    { no: 3, name: 'C', latest: 600000, total: 9, init: null },
+  ];
+  const r = R.silvPremium({ rows });
+  assert.equal(rows[0].premPct, 10);
+  assert.equal(rows[1].premPct, -4);
+  assert.equal(rows[2].premPct, null);
+  assert.equal(r, Math.round((10 * 3 + -4 * 1) / 4 * 10) / 10);
+  assert.equal(R.silvPremium({ rows: [rows[2]] }), null);
+});
+
+test('검토 문안: 분양권 프리미엄이 있으면 최초 분양가 대비 문장을 붙인다', () => {
+  const rep = R.buildReport([complex({ name: 'A', trades: [trade(2024, 50000)] })], OPTS);
+  const silv = { cur: { avg: 515280, cnt: 2 }, ratio: 113, premAvg: 6.5 };
+  const text = R.narrative(rep, silv, { ...OPTS, guName: '천안시 서북구', siteDong: '' }).join('\n');
+  assert.match(text, /분양권 실거래가격 평균은 515,280천원/);
+  assert.match(text, /최초 분양가\(84타입 대표 평형\) 대비 평균 약 \+6\.5% 수준/);
+});
+
 test('검토 문안: PDF와 같은 틀로 구 평균·순위·본건 비교를 쓴다', () => {
   const list = [
     complex({ name: '불당지웰더샵', dong: '불당동', trades: [trade(2024, 82233)] }),

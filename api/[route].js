@@ -78,6 +78,13 @@ const ROUTES = {
       sido: 'cond[SUBSCRPT_AREA_CODE_NM::EQ]',
     },
   },
+  // 청약홈 주택형별 분양정보 — 공고 하나(주택관리번호)의 주택형·공급면적·최고 분양가 (같은 서비스, 별도 신청 불필요)
+  'bunyang-mdl': {
+    host: 'odcloud',
+    path: '/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancMdl',
+    params: ['houseNo', 'page', 'perPage'], cache: 'static', json: true,
+    rename: { houseNo: 'cond[HOUSE_MANAGE_NO::EQ]' },
+  },
   // 건축물대장은 numOfRows를 100으로 강제한다 (실측 확인 — 1000을 보내도 100)
   'ledger-area': {
     path: '/1613000/BldRgstHubService/getBrExposPubuseAreaInfo',

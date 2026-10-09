@@ -118,14 +118,22 @@
   // 분양권 거래 (RTMS 분양권전매) — 준공연도가 없어 연식 조건 없이 단지명·법정동으로 묶는다
   function summarizeSilv(rows, o) {
     var years = [o.baseYear - 2, o.baseYear - 1, o.baseYear], groups = {};
+    // 같은 단지가 시기마다 「천안 백석 센트레빌」·「천안백석센트레빌」처럼 다르게 신고된다 → 법정동+지번으로 묶고,
+    // 지번이 없으면 띄어쓰기를 뺀 이름으로 묶는다. 표시 이름은 가장 많이 쓰인 표기.
+    var nameKey = function (s) { return String(s || '').replace(/\s+/g, ''); };
     rows.forEach(function (d) {
-      var k = (d.aptNm || '').trim() + '|' + (d.umdNm || '').trim();
-      (groups[k] = groups[k] || { name: (d.aptNm || '').trim(), dong: (d.umdNm || '').trim(), trades: [] }).trades.push(d);
+      var dong = (d.umdNm || '').trim(), lot = String(d.jibun || '').trim();
+      var k = dong + '|' + (lot ? '#' + lot : nameKey(d.aptNm));
+      var g = groups[k] = groups[k] || { dong: dong, names: {}, trades: [] };
+      var nm = (d.aptNm || '').trim();
+      g.names[nm] = (g.names[nm] || 0) + 1;
+      g.trades.push(d);
     });
     var list = Object.keys(groups).map(function (k) {
       var g = groups[k], byYear = byYearOf(g.trades, years, o.band);
       var total = years.reduce(function (s, y) { return s + byYear[y].cnt; }, 0);
-      return { name: g.name, dong: g.dong, byYear: byYear, cur: byYear[o.baseYear], total: total, latest: latestAvg(byYear, years) };
+      var name = Object.keys(g.names).sort(function (a, b) { return g.names[b] - g.names[a]; })[0];
+      return { name: name, dong: g.dong, byYear: byYear, cur: byYear[o.baseYear], total: total, latest: latestAvg(byYear, years) };
     }).filter(function (r) { return r.total > 0; });
     list.sort(function (a, b) { return a.dong.localeCompare(b.dong, 'ko') || a.name.localeCompare(b.name, 'ko'); });
     var amts = [];
@@ -136,6 +144,17 @@
       years: years, cur: { avg: avg, cnt: amts.length, py: avg ? Math.round(avg / o.convPy) : null },
       ratio: o.unitPrice ? pct(o.unitPrice, avg) : null,
     };
+  }
+
+  // 분양권 단지별 프리미엄(%) = 최근 거래 평균 ÷ 최초 분양가(대표 평형) − 1, 전체는 거래 건수 가중 평균.
+  // row.init은 report.js가 청약홈 공고로 붙인다 (PresaleCore.repPrice 결과, 천원)
+  function silvPremium(silv) {
+    var sum = 0, w = 0;
+    (silv.rows || []).forEach(function (r) {
+      r.premPct = r.init && r.init.price && r.latest ? Math.round((r.latest / r.init.price - 1) * 1000) / 10 : null;
+      if (r.premPct != null) { sum += r.premPct * (r.total || 1); w += (r.total || 1); }
+    });
+    return w ? Math.round(sum / w * 10) / 10 : null;
   }
 
   function n(v) { return v == null ? '-' : Number(v).toLocaleString('ko-KR'); }
@@ -183,7 +202,8 @@
 
     if (silv && silv.cur && silv.cur.avg) {
       var u = y + '년 ' + gu + ' 분양권 실거래가격 평균은 ' + won(silv.cur.avg, cp) + ' 수준';
-      u += o.unitPrice ? '으로 본건은 이들 대비 약 ' + silv.ratio + '% 수준임.' : '임.';
+      if (silv.premAvg != null) u += '으로 최초 분양가(' + o.band + '타입 대표 평형) 대비 평균 약 ' + (silv.premAvg > 0 ? '+' : '') + silv.premAvg + '% 수준이며';
+      u += o.unitPrice ? (silv.premAvg != null ? ', ' : '으로 ') + '본건은 이들 대비 약 ' + silv.ratio + '% 수준임.' : '임.';
       out.push(u);
     }
     return out;
@@ -192,7 +212,7 @@
   var api = {
     BANDS: BANDS, toThousand: toThousand, inBand: inBand, eligible: eligible,
     summarizeComplex: summarizeComplex, buildReport: buildReport, summarizeSilv: summarizeSilv,
-    narrative: narrative, compareDong: compareDong,
+    narrative: narrative, compareDong: compareDong, silvPremium: silvPremium,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RptCore = api;
