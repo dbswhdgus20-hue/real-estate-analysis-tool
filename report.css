@@ -1,0 +1,69 @@
+/* 심의 보고서 — 조건 창과 보고서 화면 (색은 index.html의 브랜드 토큰을 쓴다) */
+
+.rpt-dialog{border:1px solid var(--ui-line-strong);border-radius:6px;padding:0;width:min(560px,calc(100vw - 32px));color:var(--ui-ink);font-family:var(--font-sans)}
+.rpt-dialog::backdrop{background:rgba(0,0,0,.35)}
+.rpt-form{display:flex;flex-direction:column;gap:14px;padding:22px 24px}
+.rpt-form h2{margin:0;font-size:17px;color:var(--ui-title)}
+.rpt-help{margin:0;font-size:12.5px;color:var(--ui-ink-2);line-height:1.6}
+.rpt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:12px}
+.rpt-form label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ui-ink-2)}
+.rpt-form input[type=number],.rpt-form select{height:34px;padding:0 8px;border:1px solid var(--ui-line-strong);border-radius:4px;font:inherit;font-size:13px;color:var(--ui-ink);font-variant-numeric:tabular-nums}
+.rpt-scope{border:1px solid var(--ui-line);border-radius:4px;padding:10px 12px;margin:0;display:flex;flex-direction:column;gap:6px}
+.rpt-scope legend{font-size:12.5px;color:var(--ui-ink-2);padding:0 4px}
+.rpt-form .rpt-scope label,.rpt-form .rpt-chk{flex-direction:row;align-items:center;gap:8px;color:var(--ui-ink);font-size:13px}
+.rpt-note{margin:0;font-size:12px;color:var(--ui-accent);min-height:1.2em}
+.rpt-actions{display:flex;justify-content:flex-end;gap:8px}
+.rpt-actions .hbtn{height:34px;padding:0 16px}
+
+.rpt-view{position:fixed;inset:0;z-index:1000;background:#fff;overflow:auto;font-family:var(--font-sans)}
+.rpt-view[hidden]{display:none}
+.rpt-bar{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 20px;background:var(--ui-chrome);border-bottom:1px solid var(--ui-line-strong)}
+.rpt-bar strong{font-size:14px;color:var(--ui-title)}
+.rpt-bar-meta{flex:1;min-width:120px;font-size:12px;color:var(--ui-ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rpt-bar .hbtn{height:32px;padding:0 14px}
+
+.rpt-doc{max-width:980px;margin:0 auto;padding:28px 20px 64px;display:flex;flex-direction:column;gap:28px;color:var(--ui-ink)}
+.rpt-doc header{border-bottom:2px solid var(--ui-title);padding-bottom:12px;display:flex;flex-direction:column;gap:4px}
+.rpt-doc h1{margin:0 0 4px;font-size:22px;color:var(--ui-title)}
+.rpt-doc h2{margin:0 0 10px;font-size:15px}
+.rpt-cond{margin:0;font-size:12.5px;color:var(--ui-ink-2)}
+.rpt-warn{margin:0;padding:8px 12px;background:var(--kirt-blue-pale);font-size:12.5px;color:var(--ui-ink)}
+.rpt-foot{margin:8px 0 0;font-size:11.5px;color:var(--ui-ink-2);line-height:1.6}
+.rpt-empty{margin:0;padding:14px;text-align:center;color:var(--ui-ink-2);font-size:12.5px;line-height:1.7}
+
+.rpt-table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.rpt-narrow{max-width:640px}
+.rpt-table th{position:static;font-size:12px;font-weight:500;color:var(--ui-ink);text-align:center;background:var(--kirt-e6);padding:6px 8px;border-top:1px solid var(--ui-ink);border-right:0;border-bottom:1px solid var(--ui-line-strong);white-space:nowrap}
+.rpt-table td{font-size:12.5px}
+.rpt-table td{padding:5px 8px;border-bottom:1px dotted var(--ui-line-strong)}
+.rpt-table td.num{text-align:right;white-space:nowrap}
+.rpt-table th.rpt-dong{background:#fff;border-top:0;border-right:1px solid var(--ui-line);border-bottom:1px solid var(--ui-line-strong);vertical-align:middle;font-size:12.5px;font-weight:700}
+.rpt-strong{font-weight:700}
+.rpt-hi{color:#C00000;font-weight:700}
+.rpt-mine td{background:var(--kirt-blue-pale)}
+.rpt-total td{border-top:1px solid var(--ui-ink);border-bottom:1px solid var(--ui-ink);font-weight:700}
+.rpt-doc section{overflow-x:auto}
+
+.rpt-text{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--ui-line-strong);border-radius:4px;font:inherit;font-size:13.5px;line-height:1.8;resize:vertical}
+.rpt-print-text{display:none;white-space:pre-wrap;font-size:13px;line-height:1.8}
+.rpt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* PDF 받기 — A4 세로 본문 폭(194mm ≈ 733px)에 맞춰 그린다. 넓으면 오른쪽 열이 잘린다 */
+.rpt-doc.rpt-pdf{width:100%;max-width:none;margin:0;padding:0;gap:18px;box-sizing:border-box}
+.rpt-pdf section{overflow:visible}
+.rpt-pdf h1{font-size:19px}
+.rpt-pdf h2{font-size:13.5px}
+.rpt-pdf .rpt-cond,.rpt-pdf .rpt-foot{font-size:10.5px}
+.rpt-pdf .rpt-table td,.rpt-pdf .rpt-table th{font-size:10.5px;padding:3px 4px}
+.rpt-pdf .rpt-print-text{font-size:11.5px;line-height:1.7}
+
+@media print{
+  body.rpt-open{height:auto;overflow:visible;display:block}
+  body.rpt-open>*:not(.rpt-view){display:none!important}
+  body.rpt-open .rpt-view{position:static;overflow:visible}
+  .rpt-bar{display:none}
+  .rpt-doc{max-width:none;padding:0}
+  .rpt-text{display:none}
+  .rpt-print-text{display:block}
+  .rpt-table tr{break-inside:avoid}
+}

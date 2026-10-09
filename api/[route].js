@@ -41,6 +41,12 @@ const ROUTES = {
     path: '/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent',
     params: ['LAWD_CD', 'DEAL_YMD'], cache: 'monthly',
   },
+  // 아파트 분양권전매 실거래 — 심의 보고서의 분양권 비교용 (공공데이터포털 별도 활용신청 필요)
+  'apt-silv': {
+    path: '/1613000/RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade',
+    params: ['LAWD_CD', 'DEAL_YMD'], cache: 'monthly',
+    minIntervalMs: 200,   // 실측(2026-10-09): 동시 5개로 부르면 23(초당 제한)이 연달아 난다
+  },
   // 청약홈 분양정보 — 호스트와 응답 형식(JSON)이 달라 별도 경로로 처리
   //   gu  → cond[HSSPLY_ADRES::LIKE] (공급위치에 시군구명이 들어간다)
   //   sido→ cond[SUBSCRPT_AREA_CODE_NM::EQ]
@@ -71,6 +77,13 @@ const ROUTES = {
       gu: 'cond[HSSPLY_ADRES::LIKE]',
       sido: 'cond[SUBSCRPT_AREA_CODE_NM::EQ]',
     },
+  },
+  // 청약홈 주택형별 분양정보 — 공고 하나(주택관리번호)의 주택형·공급면적·최고 분양가 (같은 서비스, 별도 신청 불필요)
+  'bunyang-mdl': {
+    host: 'odcloud',
+    path: '/api/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancMdl',
+    params: ['houseNo', 'page', 'perPage'], cache: 'static', json: true,
+    rename: { houseNo: 'cond[HOUSE_MANAGE_NO::EQ]' },
   },
   // 건축물대장은 numOfRows를 100으로 강제한다 (실측 확인 — 1000을 보내도 100)
   'ledger-area': {

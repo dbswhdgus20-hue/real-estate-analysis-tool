@@ -2,8 +2,14 @@
   "name": "real-estate-analysis-tool",
   "version": "1.0.0",
   "private": true,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "fast-xml-parser": "^4.4.1"
+  },
+  "scripts": {
+    "local": "node local-server.js",
+    "test": "node --test \"test/*.test.js\""
   }
 }

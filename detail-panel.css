@@ -1,0 +1,40 @@
+/* 우측 상세 패널 — 핵심 숫자 카드·표·접힘 상세 (색은 index.html 브랜드 토큰) */
+
+.dp-body .dsec{margin-bottom:8px}
+.dp-body .dsec-title{display:flex;align-items:center;gap:6px;margin:0;font-size:11px;padding:5px 9px}
+.dp-body .dsec-title .badge{font-size:9.5px;font-weight:600}
+
+/* ① 핵심 숫자 — 2×2 카드. 라벨에 보이는 값이 여기서도 가장 먼저 읽히게 */
+.dp-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.dp-kpi{display:flex;flex-direction:column;gap:1px;padding:7px 9px;background:#fff;border:1px solid var(--ui-line);border-top:2px solid var(--ui-accent);min-width:0}
+.dp-kpi-k{font-size:10px;color:var(--ui-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dp-kpi-v{font-size:16px;font-weight:700;color:var(--ui-ink);font-variant-numeric:tabular-nums;line-height:1.25}
+.dp-kpi-s{font-size:9.5px;color:var(--ui-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.dp-note{margin:0;padding:5px 9px;font-size:10px;line-height:1.5;color:var(--ui-ink-2)}
+.dp-kpis + .dp-note{padding:0 2px 6px;margin-top:-3px}
+.dp-muted{font-size:11px;color:var(--ui-ink-3)}
+.dp-addr{font-size:11px;line-height:1.4;max-width:170px;text-align:right;word-break:keep-all}
+
+/* 표 — 평형별·주택형별 */
+.dp-tbl{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+.dp-tbl th{position:static;background:var(--kirt-blue-pale);color:var(--ui-ink-2);font-size:10px;font-weight:600;padding:4px 6px;border-right:0;text-align:left}
+.dp-tbl th.r,.dp-tbl td.r{text-align:right}
+.dp-tbl td{padding:4px 6px;border-bottom:1px solid var(--ui-line);white-space:nowrap}
+.dp-tbl tbody tr:nth-child(even) td{background:transparent}
+.dp-tbl tr.ps-rep td{font-weight:700;color:var(--ui-ink)}
+.dp-tbl tr.ps-ph td{color:var(--ui-ink-3)}
+.dp-tbl .ps-x{font-size:8.5px;padding:0 3px;border:1px solid var(--ui-ink-3);color:var(--ui-ink-3);vertical-align:1px}
+
+.dp-links{justify-content:flex-end;gap:12px}
+.dp-links a{font-size:11px;font-weight:600;color:var(--ui-accent);text-decoration:none}
+.dp-links a:hover{text-decoration:underline}
+
+/* ⑥ 상세 — 확인용 자료는 접어 둔다 */
+.dp-more{background:#fff;border:1px solid var(--ui-line);margin-bottom:8px}
+.dp-more summary{cursor:pointer;padding:6px 9px;font-size:11px;font-weight:600;color:var(--ui-ink-2);list-style-position:inside}
+.dp-more summary:hover{color:var(--ui-accent)}
+.dp-more[open] summary{border-bottom:1px solid var(--ui-line)}
+
+/* 평형별 표 — 추정 공급면적 표시 */
+.dp-est{font-size:8.5px;padding:0 3px;border:1px solid var(--kirt-tan);color:var(--kirt-tan);vertical-align:1px}
