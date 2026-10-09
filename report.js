@@ -8,6 +8,7 @@
    ══════════════════════════════════════════════════════════════ */
 var RPT_LS = 'kirt.rpt.opts.v1';
 var RPT_RATIO_HI = 90;          // 본건대비 강조 기준(%) — 심의자료의 빨간 글씨
+var RPT_SILV_CONCURRENCY = 2;   // 분양권 API는 초당 호출 제한(23)에 쉽게 걸려 동시 호출을 줄인다
 var rptState = null;            // 마지막으로 만든 보고서 {rep, silv, silvErr, text, o, meta}
 var rptBusy = false;
 
@@ -171,8 +172,19 @@ async function rptPickKapt(c, list) {
   }
   return null;
 }
+// 세대수 ① 건축물대장 총괄표제부(이미 쓰는 키·30일 캐시) → ② 그래도 없으면 K-apt
 async function rptFillHouseholds(list) {
-  if (API_MODE !== 'proxy' || kaptBlocked) return kaptBlocked ? 'K-apt 활용신청이 필요해 세대수를 비웠습니다.' : '';
+  if (API_MODE !== 'proxy') return '';
+  var need = list.filter(function (c) { return !c.households && !c.kaptCnt && c.ledgerKey; }), done = 0;
+  await runPool(need, async function (c) {
+    var o = await loadBuilding(c);
+    if (o && o.b && o.b.hhld) c.households = o.b.hhld;
+  }, 2, function () { setStatus('loading', '세대수 확인 중 (건축물대장) ' + (++done) + '/' + need.length); });
+  var rest = list.filter(function (c) { return !c.households && !c.kaptCnt; });
+  return rest.length ? rptFillKapt(rest) : '';
+}
+async function rptFillKapt(list) {
+  if (kaptBlocked) return '세대수 일부는 K-apt 활용신청이 필요해 비웠습니다.';
   var todo = list.filter(function (c) { return !c.kaptCnt && c.sigunguCd && c.bjdongCd; }), groups = {};
   todo.forEach(function (c) { var b = String(c.sigunguCd) + String(c.bjdongCd); (groups[b] = groups[b] || []).push(c); });
   var done = 0;
@@ -202,13 +214,24 @@ async function rptFetchSilv(o, run) {
   var lawds = o.scope === 'radius' ? run.lawds : [run.lawd], tasks = [];
   lawds.forEach(function (l) { months.forEach(function (m) { tasks.push({ l: l, m: m }); }); });
   var fields = ['aptNm', 'umdNm', 'dealAmount', 'excluUseAr', 'dealYear', 'dealMonth', 'dealDay', 'cdealType', 'dealingGbn', 'ownershipGbn', 'sggCd'];
-  var errors = {}, rows = [];
-  var res = await runPool(tasks, async function (t) {
+  var errors = {}, rows = [], stopped = '';
+  async function one(t) {
+    if (stopped) throw new Error(stopped);
     var label = '분양권 ' + t.l + ' ' + t.m;
     var r = await fetchAllItems(API_SPECS.aptSilv, { LAWD_CD: t.l, DEAL_YMD: t.m }, fields, label);
-    if (r.__apiError && r.length === 0) throw new Error(r.__apiError);
+    if (r.__apiError && r.length === 0) {
+      if (kaptKeyError(r.__apiError)) stopped = r.__apiError;     // 활용신청 전 키 — 나머지 달도 똑같이 실패하므로 바로 멈춘다
+      throw new Error(r.__apiError);
+    }
     return filterDirect(dropCanceled(r, label));
-  }, FETCH_CONCURRENCY, function (d, total) { setStatus('loading', '분양권 실거래 수집 ' + d + '/' + total); });
+  }
+  // 첫 달 하나로 먼저 확인 — 키가 등록 안 됐으면 수십 번 헛호출하지 않는다
+  setStatus('loading', '분양권 실거래 확인 중');
+  try { rows = rows.concat(await one(tasks[0])); }
+  catch (e) { if (stopped) return { error: '분양권 실거래를 받지 못했습니다: ' + stopped }; errors[e.message] = 1; }
+  var res = await runPool(tasks.slice(1), function (t) { return one(t); }, RPT_SILV_CONCURRENCY,
+    function (d, total) { setStatus('loading', '분양권 실거래 수집 ' + d + '/' + total); });
+  if (stopped) return { error: '분양권 실거래를 받지 못했습니다: ' + stopped };
   res.forEach(function (r) { if (r && r.__error) errors[r.__error] = 1; else if (r) rows = rows.concat(r); });
   var errList = Object.keys(errors);
   if (errList.length && !rows.length) return { error: '분양권 실거래를 받지 못했습니다: ' + errList[0] };

@@ -30,7 +30,8 @@
     var b = BANDS[band], v = parseFloat(ar);
     return !!b && v >= b.lo && v < b.hi;
   }
-  function mean(a) { return a.length ? Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length) : null; }
+  // 평균은 만원 단위로 반올림한 뒤 천원으로 적는다 (심의자료: 591,625 → 591,630)
+  function mean(a) { return a.length ? Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length / 10) * 10 : null; }
   function pct(a, b) { return a && b ? Math.round(a / b * 100) : null; }
   function yearsOf(o) { return [o.baseYear - 3, o.baseYear - 2, o.baseYear - 1, o.baseYear]; }
 
@@ -63,7 +64,7 @@
     var total = years.reduce(function (s, y) { return s + byYear[y].cnt; }, 0);
     return {
       key: c.key, name: c.name, dong: c.dong || '', buildYear: c.buildYear || '',
-      households: c.kaptCnt ? Number(c.kaptCnt) : null, dist: c.dist == null ? null : c.dist,
+      households: Number(c.households || c.kaptCnt) || null, dist: c.dist == null ? null : c.dist,
       byYear: byYear, cur: byYear[o.baseYear], latest: latest, total: total,
       ratio: o.unitPrice ? pct(latest, o.unitPrice) : null,
     };

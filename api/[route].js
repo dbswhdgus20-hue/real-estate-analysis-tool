@@ -45,6 +45,7 @@ const ROUTES = {
   'apt-silv': {
     path: '/1613000/RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade',
     params: ['LAWD_CD', 'DEAL_YMD'], cache: 'monthly',
+    minIntervalMs: 200,   // 실측(2026-10-09): 동시 5개로 부르면 23(초당 제한)이 연달아 난다
   },
   // 청약홈 분양정보 — 호스트와 응답 형식(JSON)이 달라 별도 경로로 처리
   //   gu  → cond[HSSPLY_ADRES::LIKE] (공급위치에 시군구명이 들어간다)
