@@ -514,6 +514,7 @@ tr:last-child td{border-bottom:none}
 }
 
 </style>
+<link rel="stylesheet" href="report.css">
 </head>
 <body>
 
@@ -566,6 +567,7 @@ tr:last-child td{border-bottom:none}
     </select>
 
     <button class="hbtn hbtn-run" id="runBtn" onclick="runAnalysis()" title="단축키: Ctrl + Enter">분석 시작</button>
+    <button class="hbtn" id="rptBtn" onclick="openReportDialog()" title="사전심의 자료 방식의 인근 실거래 분석 보고서">심의 보고서</button>
     <button class="hbtn hbtn-more" id="moreBtn" onclick="toggleFilters()"
             title="전용면적 · 거래금액 · 수집 옵션">필터 <span class="more-caret">▾</span></button>
 
@@ -825,7 +827,9 @@ var KAKAO_KEY='';   // 카카오 JS 키는 브라우저 노출이 불가피 — 
 
 var map,geo,siteMk,siteIw,radCirc;
 var aptMks=[],oftMks=[],overlays=[],clusterer=null;
-var selR=2000,curLat=null,curLng=null,curLawd=null,curSido=null,curGu=null;
+var selR=2000,curLat=null,curLng=null,curLawd=null,curSido=null,curGu=null,curDong=null;
+// 마지막으로 끝난 분석의 조건과 수집한 전체 단지 (반경 밖 포함) — 심의 보고서(report.js)가 다시 쓴다
+var lastRun=null,lastAllComplexes=[];
 var lawdNameMap={};         // 5자리 시군구코드 → {sido, gu}
 var allComplexes={},curComplex=null,curTab='trade',curAreaF='all';
 // 좌표가 잡힌 **모든** 단지 (반경 밖 포함). 분양 공고 위치를 실거래 단지로 맞출 때 쓴다.
@@ -1481,7 +1485,7 @@ function showList(results,type){
 }
 function selAddr(r){var lat=parseFloat(r.y),lng=parseFloat(r.x),label=r.road_address?r.road_address.address_name:r.address.address_name;placeSite(lat,lng,label);document.getElementById('searchResults').style.display='none';}
 function placeSite(lat,lng,label){
-  curLat=lat;curLng=lng;
+  curLat=lat;curLng=lng;curLawd=null;curDong=null;   // 구 코드는 아래 비동기 조회로 다시 채운다 (이전 사업지 값이 남지 않게)
   if(siteMk)siteMk.setMap(null);if(siteIw)siteIw.close();
   var pos=new kakao.maps.LatLng(lat,lng);
   siteMk=new kakao.maps.Marker({position:pos,map:map});
@@ -1489,7 +1493,7 @@ function placeSite(lat,lng,label){
   siteIw.open(map,siteMk);map.setCenter(pos);map.setLevel(7);drawCirc();
   document.getElementById('addrOk').textContent=''+label;
   geo.coord2RegionCode(lng,lat,function(r,s){
-    if(s===kakao.maps.services.Status.OK){var reg=r.find(x=>x.region_type==='B');if(reg){curLawd=reg.code.substring(0,5);curSido=reg.region_1depth_name;curGu=reg.region_2depth_name;setStatus('ok',''+curGu+' · 분석 시작 버튼을 눌러주세요');}}
+    if(s===kakao.maps.services.Status.OK){var reg=r.find(x=>x.region_type==='B');if(reg){curLawd=reg.code.substring(0,5);curSido=reg.region_1depth_name;curGu=reg.region_2depth_name;curDong=reg.region_3depth_name;setStatus('ok',''+curGu+' · 분석 시작 버튼을 눌러주세요');}}
   });
 }
 
@@ -1598,6 +1602,7 @@ var API_SPECS={
   offiTrade: {route:'offi-trade',  path:'/1613000/RTMSDataSvcOffiTrade/getRTMSDataSvcOffiTrade'},
   offiRent : {route:'offi-rent',   path:'/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent'},
   // 건축물대장은 서버가 numOfRows를 100으로 강제한다 (실측 확인)
+  aptSilv  : {route:'apt-silv',    path:'/1613000/RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade'},
   ledger   : {route:'ledger-area',  path:'/1613000/BldRgstHubService/getBrExposPubuseAreaInfo', pageSize:100},
   recap    : {route:'ledger-recap', path:'/1613000/BldRgstHubService/getBrRecapTitleInfo',      pageSize:100},
   title    : {route:'ledger-title', path:'/1613000/BldRgstHubService/getBrTitleInfo',           pageSize:100}
@@ -2977,6 +2982,8 @@ async function runAnalysis(){
   if(!curLawd){setStatus('err','잠시 후 다시 시도해주세요.');return;}
   var start=getYm('start'),end=getYm('end'),type=document.getElementById('selType').value;
   if(parseInt(start)>parseInt(end)){setStatus('err','시작 기간이 종료보다 늦습니다.');return;}
+  var runOk=false;
+  lastRun=null;lastAllComplexes=[];
 
   aptMks.forEach(m=>m.setMap(null));aptMks=[];
   oftMks.forEach(m=>m.setMap(null));oftMks=[];
@@ -3136,6 +3143,7 @@ async function runAnalysis(){
     statGeo={total:complexes.length,inR:inRadius.length,fail:geoFail.length,loose:geoLoose.length,src:bySrc};
     // 반경 밖 단지도 좌표가 있으면 색인해 둔다 (분양 공고 위치 대조용)
     complexIndex=complexes.filter(function(c){return c.lat&&c.lng;});
+    lastAllComplexes=complexes;     // 좌표 실패 단지까지 포함 — 시군구 단위 심의 보고서용
 
     // 지번 2차 보완 — 법정동코드만 없던 단지를 좌표로 되살린다
     setProg(96,'지번 보완 중...');
@@ -3266,6 +3274,9 @@ async function runAnalysis(){
       console.warn('[수집 누락 목록]', statTruncated);
     }
     setStatus(statTruncated.length>0?'loading':'ok', statTxt);
+    lastRun={start:start,end:end,type:type,lawd:curLawd,lawds:curLawds.slice(),r:selR,lat:curLat,lng:curLng,
+             gu:curGu,dong:curDong,site:document.getElementById('addrOk').textContent,missing:statTruncated.length};
+    runOk=true;
 
     // 분양단지 자동 조회
     setProg(100,'분양단지 조회 중...');
@@ -3280,6 +3291,7 @@ async function runAnalysis(){
   }catch(e){setStatus('err','오류: '+e.message);console.error(e);}
   showVeil(false);
   document.getElementById('runBtn').disabled=false;
+  return runOk;
 }
 
 // ── 패널 열기/닫기 ──
@@ -4550,5 +4562,8 @@ initKeyboard();
 initBottomResize();
 bootstrap();
 </script>
+<script src="report-core.js"></script>
+<script src="report.js"></script>
+<script src="report-view.js"></script>
 </body>
 </html>

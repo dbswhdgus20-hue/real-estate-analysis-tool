@@ -41,6 +41,11 @@ const ROUTES = {
     path: '/1613000/RTMSDataSvcOffiRent/getRTMSDataSvcOffiRent',
     params: ['LAWD_CD', 'DEAL_YMD'], cache: 'monthly',
   },
+  // 아파트 분양권전매 실거래 — 심의 보고서의 분양권 비교용 (공공데이터포털 별도 활용신청 필요)
+  'apt-silv': {
+    path: '/1613000/RTMSDataSvcSilvTrade/getRTMSDataSvcSilvTrade',
+    params: ['LAWD_CD', 'DEAL_YMD'], cache: 'monthly',
+  },
   // 청약홈 분양정보 — 호스트와 응답 형식(JSON)이 달라 별도 경로로 처리
   //   gu  → cond[HSSPLY_ADRES::LIKE] (공급위치에 시군구명이 들어간다)
   //   sido→ cond[SUBSCRPT_AREA_CODE_NM::EQ]
