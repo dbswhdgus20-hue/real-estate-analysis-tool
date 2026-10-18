@@ -158,7 +158,7 @@ function rptSnapshot(o) {
   list = list.map(function (c) { return Object.assign({}, c, { trades: filterDirect(c.tradesAll || c.trades || []) }); });
   // 지역 지표용 — 반경에 걸친 모든 시군구의 단지 (scope와 무관)
   var region = lastAllComplexes.filter(function (c) { return lastRun.lawds.indexOf(rptSgg(c)) !== -1; })
-    .map(function (c) { return { type: c.type, presale: !!c.presale, sgg: rptSgg(c), trades: filterDirect(c.tradesAll || c.trades || []), rents: c.rents || [] }; });
+    .map(function (c) { return { type: c.type, presale: !!c.presale, sgg: rptSgg(c), dong: c.dong, trades: filterDirect(c.tradesAll || c.trades || []), rents: c.rents || [] }; });
   return { run: lastRun, complexes: list, region: region };
 }
 function rptGuNames(lawds) {
@@ -295,13 +295,30 @@ async function runReport() {
     document.getElementById('runBtn').disabled = true;    // 세대수·분양권을 받는 동안 새 분석을 막는다
     var snap = rptSnapshot(o), run = snap.run, complexes = snap.complexes, notes = [];
     var endM = rptNeedRange(o.baseYear).end;
-    var region = RptCore.regionStats(snap.region, { baseYear: o.baseYear, endMonth: String(endM).slice(0, 4) === String(o.baseYear) ? parseInt(String(endM).slice(4), 10) : 12, names: rptGuNames(run.lawds) });
+    var regOpt = { baseYear: o.baseYear, endMonth: String(endM).slice(0, 4) === String(o.baseYear) ? parseInt(String(endM).slice(4), 10) : 12, names: rptGuNames(run.lawds) };
+    var region = RptCore.regionStats(snap.region, regOpt);
+    // 사업지 법정동 — 같은 계산을 그 동 단지만으로 한 번 더 해서 'dong' 줄로 붙인다
+    if (run.dong) {
+      var inDong = snap.region.filter(function (c) { return c.sgg === run.lawd && c.dong === run.dong; })
+        .map(function (c) { return Object.assign({}, c, { sgg: 'dong' }); });
+      var rd = RptCore.regionStats(inDong, Object.assign({}, regOpt, { names: { dong: run.dong } }));
+      if (rd.gus.length) region.gus.push(Object.assign(rd.gus[0], { dong: true }));
+      else {
+        // 준공 아파트 거래가 없는 동(분양권 단지만 있는 신도시 등)도 줄은 남기고 빈칸으로 둔다
+        var blank = {};
+        region.years.forEach(function (y) {
+          blank[y] = { trade: { cnt: 0, avg: null, py: null }, jeonse: { cnt: 0, avg: null }, wolse: { cnt: 0, dep: null, rent: null }, yoy: null };
+        });
+        region.gus.push({ sgg: 'dong', name: run.dong, dong: true, empty: true, byYear: blank,
+                          presaleN: inDong.filter(function (c) { return c.presale; }).length });
+      }
+    }
     // 주민등록 통계는 상류가 느리다(호출당 4~7초, 처음 받는 시군구는 1~3분). 보고서를 먼저 띄우고 받는 대로 표를 채운다
     var popLoading = { loading: true, done: 0, total: 0 };
     var popP = rptLoadPopulation(run.lawds, region.years, parseInt(endM, 10), function (d, t, partial) {
       popLoading.done = d; popLoading.total = t; popLoading.partial = partial;
       if (rptState && rptState.pop === popLoading) rgnRefreshPop();
-    });
+    }, { code: run.bjd, name: run.dong });
     if (o.households) {
       var hn = await rptFillHouseholds(complexes.filter(function (c) { return RptCore.eligible(c, o); }));
       if (hn) notes.push(hn);
@@ -320,8 +337,14 @@ async function runReport() {
     }
     if (run.missing) notes.push('실거래 수집 중 누락 구간이 ' + run.missing + '건 있습니다 (콘솔 확인).');
     var endYm = rptNeedRange(o.baseYear).end;
-    var text = RptCore.regionNarrative(region, run.lawd, endYm).concat(
-      RptCore.narrative(rep, silv, Object.assign({}, o, { guName: run.gu, siteDong: run.dong })));
+    // 요약 순서도 보고서 흐름과 같게: 인구·세대 → 거래·가격(구 → 사업지 법정동) → 인근 단지·분양가
+    var popNames = {}; popNames[run.lawd] = run.gu; if (run.dong) popNames.dong = run.dong + '(사업지 법정동)';
+    var makeText = function (pop) {
+      return PopCore.narrative(pop, region.years, popNames)
+        .concat(RptCore.regionNarrative(region, run.lawd, endYm), RptCore.regionNarrative(region, 'dong', endYm),
+          RptCore.narrative(rep, silv, Object.assign({}, o, { guName: run.gu, siteDong: run.dong })));
+    };
+    var text = makeText(null);
     rptState = { rep: rep, silv: silv, silvErr: silvErr, text: text, o: o, notes: notes, meta: rptMeta(o, run),
                  region: region, pop: popLoading, endYm: endYm, lawds: run.lawds };
     renderReport();
@@ -330,6 +353,10 @@ async function runReport() {
       if (rptState !== mine) return;      // 그 사이 새 보고서를 만들었으면 버린다
       mine.pop = pop;
       rgnRefreshPop();
+      // 요약 칸을 아직 고치지 않았으면 인구 문장을 앞에 넣어 다시 쓴다 (고쳤으면 그대로 둔다)
+      var ta = document.getElementById('rptText');
+      var fresh = makeText(pop);
+      if (ta && ta.value === rptTextOf(mine.text) && fresh.length !== mine.text.length) { mine.text = fresh; ta.value = rptTextOf(fresh); }
     });
     setStatus('ok', '분석 보고서 완료 · 대상 ' + rep.rows.length + '개 단지 · ' + rep.summaryYear + '년 ' + o.band + '타입 ' + rptN(rep.gu.cnt) + '건');
   } catch (e) {

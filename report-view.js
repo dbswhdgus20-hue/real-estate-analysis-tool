@@ -1,10 +1,12 @@
 /* ══════════════════════════════════════════════════════════════
    분석 보고서 — 보고서 화면 · Excel · 인쇄 (report.js가 만든 rptState를 그린다)
    표 구성은 사전심의 자료를 따른다.
-     가. 공동주택단지(입주 N년 내 + 전용 84㎡) 최근 3개년 실거래가격 평균
-     나. 동별 평균과 순위
-     다. 최근 3개년 분양권 실거래가격 평균
-     라. 검토 문안 (자동 작성 → 고쳐 쓸 수 있음)
+     가. 인구·세대 (수요 기반)            — report-region.js
+     나. 주택 거래·가격 (시장 흐름)        — report-region.js
+     다. 공동주택단지(입주 N년 내 + 전용 84㎡) 최근 3개년 실거래가격 평균
+     라. 법정동별 평균과 순위
+     마. 최근 3개년 분양권 실거래가격 평균
+     바. 요약 (수치, 고쳐 쓸 수 있음)
    ══════════════════════════════════════════════════════════════ */
 function rptTitle(o) { return '공동주택단지(입주 ' + o.maxAge + '년 내 + 전용 ' + o.band + '㎡) 최근 3개년 실거래가격 평균'; }
 
@@ -75,6 +77,10 @@ function rptSilvTable(st) {
     '세대 이하 주택형 제외, 발코니 확장 별도). 분양가 대비 = 최근 거래 평균 ÷ 최초 분양가 − 1. 세대수·분양 = 공고의 공급세대·모집공고 연월.</p>';
 }
 
+// 요약 칸의 글 — 화면 입력칸과 '고쳤는지' 비교에 같은 형식을 쓴다
+function rptTextOf(lines) { return lines.map(function (t) { return '- ' + t; }).join('\n\n'); }
+var RPT_FLOW = '구성: 가. 인구·세대(수요) → 나. 거래량·매매가·전월세(시장) → 다. 인근 단지 실거래 → 라. 법정동별 평균 → 마. 분양권 → 바. 요약';
+
 function renderReport() {
   var st = rptState, o = st.o, m = st.meta, rep = st.rep, view = document.getElementById('rptView');
   var cond = m.scope + ' · 기준연도 ' + o.baseYear + ' · 평당가 = 평균가 ÷ ' + o.convPy + '평 · 해제거래 제외 · ' + m.direct + ' · 단위 천원';
@@ -90,16 +96,17 @@ function renderReport() {
     '<article class="rpt-doc">' +
     '<header><h1>인근 실거래 분석 보고서</h1><p class="rpt-cond">' + rptEsc(cond) + '</p>' +
     '<p class="rpt-cond">사업지 ' + rptEsc(m.site) + ' (' + rptEsc(m.dong) + ') · 분석일 ' + m.date +
-    (o.unitPrice ? ' · 본건 세대당 분양가 ' + rptN(o.unitPrice) + '천원' : '') + '</p></header>' +
+    (o.unitPrice ? ' · 본건 세대당 분양가 ' + rptN(o.unitPrice) + '천원' : '') + '</p>' +
+    (st.region ? '<p class="rpt-cond">' + RPT_FLOW + '</p>' : '') + '</header>' +
     st.notes.map(function (n) { return '<p class="rpt-warn">' + rptEsc(n) + '</p>'; }).join('') +
     (st.region ? rgnSection(st) : '') +
-    '<section><h2>나. ' + rptEsc(rptTitle(o)) + '</h2>' + rptTradeTable(rep, o) +
+    '<section><h2>다. ' + rptEsc(rptTitle(o)) + '</h2>' + rptTradeTable(rep, o) +
     '<p class="rpt-foot">' + rep.years.slice(0, 3).join('·') + '년은 연평균, ' + rptYY(rep.years[3]) + '가격은 ' + rep.years[3] +
     '년 평균(조회 시점까지). 본건대비 = 최근 가격 ÷ 본건 세대당 분양가, ' + RPT_RATIO_HI + '% 이상 강조. 임대 단지는 제외.</p></section>' +
-    '<section><h2>다. ' + rep.summaryYear + '년 법정동별 평균</h2>' + rptDongTable(rep, m) + '</section>' +
-    '<section><h2>라. 최근 3개년 분양권 실거래가격 평균</h2>' + rptSilvTable(st) + '</section>' +
-    '<section><h2>마. 요약 (수치)</h2><label class="rpt-sr" for="rptText">요약 (고쳐 쓸 수 있음)</label>' +
-    '<textarea id="rptText" class="rpt-text" rows="8">' + rptEsc(st.text.map(function (t) { return '- ' + t; }).join('\n\n')) + '</textarea>' +
+    '<section><h2>라. ' + rep.summaryYear + '년 법정동별 평균</h2>' + rptDongTable(rep, m) + '</section>' +
+    '<section><h2>마. 최근 3개년 분양권 실거래가격 평균</h2>' + rptSilvTable(st) + '</section>' +
+    '<section><h2>바. 요약 (수치)</h2><label class="rpt-sr" for="rptText">요약 (고쳐 쓸 수 있음)</label>' +
+    '<textarea id="rptText" class="rpt-text" rows="8">' + rptEsc(rptTextOf(st.text)) + '</textarea>' +
     '<div id="rptPrintText" class="rpt-print-text" aria-hidden="true"></div>' +
     '<p class="rpt-foot">수치만 정리한 문장입니다. 판단·의견은 보고서를 읽는 분이 덧붙이세요. 고친 내용은 Excel·PDF·Word에 그대로 들어갑니다.</p></section>' +
     '</article>';

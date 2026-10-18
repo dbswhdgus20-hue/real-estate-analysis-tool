@@ -27,7 +27,7 @@ function rptLoadLib(name) {
 function rptFileBase() { return '분석보고서_' + (rptState.meta.dong || '사업지') + '_' + rptState.meta.date.replace(/\./g, ''); }
 function rptCurrentText() {
   var ta = document.getElementById('rptText');
-  return (ta ? ta.value : rptState.text.map(function (t) { return '- ' + t; }).join('\n\n'));
+  return (ta ? ta.value : rptTextOf(rptState.text));
 }
 async function rptWithBusy(btnId, label, job) {
   var btn = document.getElementById(btnId), old = btn ? btn.textContent : '';
@@ -133,22 +133,23 @@ function rptDocxBody(k, st) {
     k.para(m.scope + ' · 기준연도 ' + o.baseYear + ' · 평당가 = 평균가 ÷ ' + o.convPy + '평 · 해제거래 제외 · ' + m.direct + ' · 단위 천원', { run: { color: '666666' } }),
     k.para('사업지 ' + m.site + ' (' + m.dong + ') · 분석일 ' + m.date + (o.unitPrice ? ' · 본건 세대당 분양가 ' + rptN(o.unitPrice) + '천원' : ''), { run: { color: '666666' } }),
   ];
+  if (st.region) out.push(k.para(RPT_FLOW, { run: { color: '666666' } }));
   st.notes.forEach(function (n) { out.push(k.para('※ ' + n, { run: { color: '41548B' } })); });
   return out;
 }
-// 나~마 — 인근 단지 비교 · 동별 평균 · 분양권 · 요약
+// 다~바 — 인근 단지 비교 · 동별 평균 · 분양권 · 요약
 function rptDocxBodyRest(k, st) {
   var o = st.o, m = st.meta, rep = st.rep, H = function (t) { return k.para(t, { run: { bold: true, size: 22 }, spacing: { before: 280, after: 120 } }); };
   var out = [];
-  out.push(H('나. ' + rptTitle(o)));
+  out.push(H('다. ' + rptTitle(o)));
   out.push(rep.rows.length ? rptDocxTrade(k, rep) : k.para('조건에 맞는 단지가 없습니다.'));
   out.push(k.para(rep.years.slice(0, 3).join('·') + '년은 연평균, ' + rptYY(rep.years[3]) + '가격은 ' + rep.years[3] + '년 평균. 본건대비 = 최근 가격 ÷ 본건 세대당 분양가. 임대 단지 제외.',
     { run: { size: 16, color: '666666' }, spacing: { before: 60 } }));
-  out.push(H('다. ' + rep.summaryYear + '년 법정동별 평균'));
+  out.push(H('라. ' + rep.summaryYear + '년 법정동별 평균'));
   out.push(rptDocxDong(k, rep, m));
-  out.push(H('라. 최근 3개년 분양권 실거래가격 평균'));
+  out.push(H('마. 최근 3개년 분양권 실거래가격 평균'));
   out.push(rptDocxSilv(k, st));
-  out.push(H('마. 요약 (수치)'));
+  out.push(H('바. 요약 (수치)'));
   rptCurrentText().split(/\n+/).filter(function (l) { return l.trim(); })
     .forEach(function (l) { out.push(k.para(l, { run: { size: 20 }, spacing: { after: 120, line: 360 } })); });
   return out;

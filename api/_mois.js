@@ -4,6 +4,8 @@
  *  pop-stat : 주민등록 인구 및 세대현황 (행정동 기준)  /1741000/admmPpltnHhStus/selectAdmmPpltnHhStus
  *             시도 코드 + 한 달을 주면 그 시도의 시군구(일반구 포함) 인구·세대수를 모두 준다.
  *             실측(2026-10-18): 2022.09부터 조회되고, 12개월을 한 번에 물으면 13(기간 초과)이 난다.
+ *  dong-pop : 법정동별 주민등록 인구 및 세대현황  /1741000/stdgPpltnHhStus/selectStdgPpltnHhStus (별도 활용신청)
+ *             사업지 법정동 하나의 인구·세대수. 법정동이 행정동 여럿에 걸치면 행이 나뉘어 와서 더한다.
  *  pop-move : 지역별 인구이동 현황  /1741000/ppltnDataStus/selectPpltnDataStus
  *             전입지·전출지 코드가 둘 다 필수이고 기간은 3개월 이내, 2022.10부터 제공.
  *             lv=2(시군구)로 물으면 일반구는 시기에 따라 구 단위 또는 시 단위로 나온다 → 시 단위로 맞춰 집계한다.
@@ -14,6 +16,7 @@
 
 const BASE = process.env.UPSTREAM_BASE || 'https://apis.data.go.kr';
 const POP_PATH = '/1741000/admmPpltnHhStus/selectAdmmPpltnHhStus';
+const STDG_PATH = '/1741000/stdgPpltnHhStus/selectStdgPpltnHhStus';
 const MOVE_PATH = '/1741000/ppltnDataStus/selectPpltnDataStus';
 const SIDO = ['11', '26', '27', '28', '29', '30', '31', '36', '41', '43', '44', '46', '47', '48', '50'];
 // 강원(42→51, 2023.06)·전북(45→52, 2024.01)은 기간에 맞는 코드만 부른다 — 호출 하나가 4~7초라 줄일수록 빠르다
@@ -43,6 +46,8 @@ async function callOnce(path, params, key) {
     const m = text.match(/<returnAuthMsg>([^<]*)<|<errMsg>([^<]*)</);
     throw new MoisError(`주민등록 통계 응답 오류 HTTP ${r.status}${m ? ' ' + (m[1] || m[2]) : ''}`);
   }
+  const auth = (j.OpenAPI_ServiceResponse || {}).cmmMsgHeader;
+  if (auth) throw new MoisError(`주민등록 통계 오류 ${auth.returnReasonCode || ''} ${auth.returnAuthMsg || auth.errMsg || ''}`.trim());
   const head = (j.Response || {}).head || {};
   const code = String(head.resultCode ?? '');
   if (code === NO_DATA) return { items: [], total: 0 };
@@ -90,6 +95,17 @@ async function popStat({ sido, ym }, key) {
   };
 }
 
+/** 법정동 하나, 한 달의 인구·세대수 — 리(里) 주소는 읍면 합계로 찾는다 */
+async function dongPop({ stdgCd, ym }, key) {
+  const items = await callAll(STDG_PATH, { stdgCd, srchFrYm: ym, srchToYm: ym, lv: '3', regSeCd: '1' }, key);
+  const pick = (code) => items.filter((x) => String(x.stdgCd || '') === code);
+  let rows = pick(stdgCd);
+  if (!rows.length && !stdgCd.endsWith('00')) rows = pick(stdgCd.slice(0, 8) + '00');
+  if (!rows.length) return { ym, found: false };
+  const sum = (f) => rows.reduce((a, x) => a + (num(x[f]) || 0), 0);
+  return { ym, found: true, name: String(rows[0].stdgNm || ''), pop: sum('totNmprCnt'), hh: sum('hhCnt'), parts: rows.length };
+}
+
 /** 시군구 하나의 월별 전입·전출 (단위 밖과의 이동만) */
 async function popMove({ admmCd, frYm, toYm }, key) {
   const base = { srchFrYm: frYm, srchToYm: toYm, lv: '2' };
@@ -127,6 +143,7 @@ async function popMove({ admmCd, frYm, toYm }, key) {
 
 const ROUTES = {
   'pop-stat': { re: { sido: /^\d{2}$/, ym: /^\d{6}$/ }, run: popStat },
+  'dong-pop': { re: { stdgCd: /^\d{10}$/, ym: /^\d{6}$/ }, run: dongPop },
   'pop-move': { re: { admmCd: /^\d{10}$/, frYm: /^\d{6}$/, toYm: /^\d{6}$/ }, run: popMove },
 };
 
