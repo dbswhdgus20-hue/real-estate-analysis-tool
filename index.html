@@ -584,7 +584,7 @@ tr:last-child td{border-bottom:none}
     </select>
 
     <button class="hbtn hbtn-run" id="runBtn" onclick="runAnalysis()" title="단축키: Ctrl + Enter">분석 시작</button>
-    <button class="hbtn" id="rptBtn" onclick="openReportDialog()" title="사전심의 자료 방식의 인근 실거래 분석 보고서">심의 보고서</button>
+    <button class="hbtn" id="rptBtn" onclick="openReportDialog()" title="인근 시장 지표·실거래 비교를 담은 객관적 분석 보고서">분석 보고서</button>
     <button class="hbtn hbtn-more" id="moreBtn" onclick="toggleFilters()"
             title="전용면적 · 거래금액 · 수집 옵션">필터 <span class="more-caret">▾</span></button>
 
@@ -844,8 +844,8 @@ var KAKAO_KEY='';   // 카카오 JS 키는 브라우저 노출이 불가피 — 
 
 var map,geo,siteMk,siteIw,radCirc;
 var aptMks=[],oftMks=[],overlays=[],clusterer=null;
-var selR=2000,curLat=null,curLng=null,curLawd=null,curSido=null,curGu=null,curDong=null;
-// 마지막으로 끝난 분석의 조건과 수집한 전체 단지 (반경 밖 포함) — 심의 보고서(report.js)가 다시 쓴다
+var selR=2000,curLat=null,curLng=null,curLawd=null,curSido=null,curGu=null,curDong=null,curBjd=null;   // curBjd: 사업지 10자리 법정동코드 (분석 보고서 법정동 인구)
+// 마지막으로 끝난 분석의 조건과 수집한 전체 단지 (반경 밖 포함) — 분석 보고서(report.js)가 다시 쓴다
 var lastRun=null,lastAllComplexes=[];
 // 분양권(준공 전 단지) — 키 미등록이면 그 뒤로는 부르지 않는다
 var silvBlocked='',statPresale=null;
@@ -1533,7 +1533,7 @@ function showList(results,type){
 }
 function selAddr(r){var lat=parseFloat(r.y),lng=parseFloat(r.x),label=r.road_address?r.road_address.address_name:r.address.address_name;placeSite(lat,lng,label);document.getElementById('searchResults').style.display='none';}
 function placeSite(lat,lng,label){
-  curLat=lat;curLng=lng;curLawd=null;curDong=null;   // 구 코드는 아래 비동기 조회로 다시 채운다 (이전 사업지 값이 남지 않게)
+  curLat=lat;curLng=lng;curLawd=null;curDong=null;curBjd=null;   // 구 코드는 아래 비동기 조회로 다시 채운다 (이전 사업지 값이 남지 않게)
   if(siteMk)siteMk.setMap(null);if(siteIw)siteIw.setMap(null);
   var pos=new kakao.maps.LatLng(lat,lng);
   siteMk=new kakao.maps.Marker({position:pos,map:map});
@@ -1545,7 +1545,7 @@ function placeSite(lat,lng,label){
   map.setCenter(pos);map.setLevel(7);drawCirc();
   document.getElementById('addrOk').textContent=''+label;
   geo.coord2RegionCode(lng,lat,function(r,s){
-    if(s===kakao.maps.services.Status.OK){var reg=r.find(x=>x.region_type==='B');if(reg){curLawd=reg.code.substring(0,5);curSido=reg.region_1depth_name;curGu=reg.region_2depth_name;curDong=reg.region_3depth_name;setStatus('ok',''+curGu+' · 분석 시작 버튼을 눌러주세요');}}
+    if(s===kakao.maps.services.Status.OK){var reg=r.find(x=>x.region_type==='B');if(reg){curLawd=reg.code.substring(0,5);curSido=reg.region_1depth_name;curGu=reg.region_2depth_name;curDong=reg.region_3depth_name;curBjd=reg.code;setStatus('ok',''+curGu+' · 분석 시작 버튼을 눌러주세요');}}
   });
 }
 
@@ -3278,7 +3278,7 @@ async function runAnalysis(){
     statGeo={total:complexes.length,inR:inRadius.length,fail:geoFail.length,loose:geoLoose.length,src:bySrc};
     // 반경 밖 단지도 좌표가 있으면 색인해 둔다 (분양 공고 위치 대조용)
     complexIndex=complexes.filter(function(c){return c.lat&&c.lng;});
-    lastAllComplexes=complexes;     // 좌표 실패 단지까지 포함 — 시군구 단위 심의 보고서용
+    lastAllComplexes=complexes;     // 좌표 실패 단지까지 포함 — 시군구 단위 분석 보고서용
 
     // 지번 2차 보완 — 법정동코드만 없던 단지를 좌표로 되살린다
     setProg(96,'지번 보완 중...');
@@ -3413,7 +3413,7 @@ async function runAnalysis(){
     }
     setStatus(statTruncated.length>0?'loading':'ok', statTxt);
     lastRun={start:start,end:end,type:type,lawd:curLawd,lawds:curLawds.slice(),r:selR,lat:curLat,lng:curLng,
-             gu:curGu,dong:curDong,site:document.getElementById('addrOk').textContent,missing:statTruncated.length};
+             gu:curGu,dong:curDong,bjd:curBjd,site:document.getElementById('addrOk').textContent,missing:statTruncated.length};
     runOk=true;
 
     // 분양단지 자동 조회
@@ -4542,8 +4542,10 @@ bootstrap();
 <script src="presale.js"></script>
 <script src="detail-panel.js"></script>
 <script src="report-core.js"></script>
+<script src="report-pop.js"></script>
 <script src="report.js"></script>
 <script src="report-view.js"></script>
+<script src="report-region.js"></script>
 <script src="report-export.js"></script>
 </body>
 </html>

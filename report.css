@@ -1,4 +1,4 @@
-/* 심의 보고서 — 조건 창과 보고서 화면 (색은 index.html의 브랜드 토큰을 쓴다) */
+/* 분석 보고서 — 조건 창과 보고서 화면 (색은 index.html의 브랜드 토큰을 쓴다) */
 
 .rpt-dialog{border:1px solid var(--ui-line-strong);border-radius:6px;padding:0;width:min(560px,calc(100vw - 32px));color:var(--ui-ink);font-family:var(--font-sans)}
 .rpt-dialog::backdrop{background:rgba(0,0,0,.35)}
@@ -56,6 +56,20 @@
 .rpt-pdf .rpt-cond,.rpt-pdf .rpt-foot{font-size:10.5px}
 .rpt-pdf .rpt-table td,.rpt-pdf .rpt-table th{font-size:10.5px;padding:3px 4px}
 .rpt-pdf .rpt-print-text{font-size:11.5px;line-height:1.7}
+
+/* 가. 지역 시장 지표 — 소제목·건수·연동 예정 칸·꺾은선 */
+.rpt-doc h3{margin:14px 0 6px;font-size:13px;color:var(--ui-ink)}
+.rpt-doc section > .rgn-keep:first-of-type > h3{margin-top:4px}
+.rpt-n{font-size:10.5px;color:var(--ui-ink-2);font-weight:400}
+.rpt-pending{color:var(--ui-ink-3)!important;font-size:11px}
+.rgn-chart{margin:10px 0 4px;padding:8px 10px;border:1px solid var(--ui-line)}
+.rgn-chart figcaption{font-size:12px;font-weight:700;margin-bottom:4px}
+.rgn-chart figcaption span{font-weight:400;color:var(--ui-ink-2)}
+.rgn-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--ui-ink-2);margin-bottom:2px}
+.rgn-legend i{display:inline-block;width:14px;height:2px;margin-right:5px;vertical-align:3px}
+.rgn-chart svg{display:block;max-width:640px}
+.rpt-pdf h3{font-size:12px}
+.rpt-pdf .rgn-chart{break-inside:avoid}
 
 @media print{
   body.rpt-open{height:auto;overflow:visible;display:block}

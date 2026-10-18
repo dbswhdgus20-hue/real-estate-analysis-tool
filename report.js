@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   심의 보고서 — 화면·수집·내보내기
+   분석 보고서 — 화면·수집·내보내기 (2026-10-18 심의 보고서에서 이름 변경: 판단은 읽는 사람이, 보고서는 객관 지표만)
    계산은 report-core.js(RptCore)가 맡고, 여기서는
      ① 조건 입력 창  ② 필요한 기간의 실거래 확보(모자라면 기간을 맞춰 다시 분석)
      ③ 세대수(K-apt)·분양권 실거래 보충  ④ 보고서 화면  ⑤ Excel·인쇄
@@ -42,8 +42,8 @@ function rptEnsureDom() {
   wrap.innerHTML =
     '<dialog id="rptDialog" class="rpt-dialog" aria-labelledby="rptDlgTitle">' +
     '<form method="dialog" id="rptForm" class="rpt-form">' +
-    '<h2 id="rptDlgTitle">심의 보고서 만들기</h2>' +
-    '<p class="rpt-help">사전심의 자료 「인근 최근 3개년 실거래가격」과 같은 방식으로 비교표와 검토 문안을 만듭니다.</p>' +
+    '<h2 id="rptDlgTitle">분석 보고서 만들기</h2>' +
+    '<p class="rpt-help">반경 내 시군구의 5개년 시장 지표와 인근 단지 실거래 비교표를 만듭니다. 판단 없이 수치만 담습니다.</p>' +
     '<div class="rpt-grid">' +
     '<label>기준 평형<select id="rptBand">' + bands + '</select></label>' +
     '<label>평당가 환산 공급평<input id="rptConvPy" type="number" min="1" step="0.1" required></label>' +
@@ -51,7 +51,7 @@ function rptEnsureDom() {
     '<label>기준연도<select id="rptYear">' + years + '</select></label>' +
     '</div>' +
     '<fieldset class="rpt-scope"><legend>비교 범위</legend>' +
-    '<label><input type="radio" name="rptScope" value="gu"> 사업지 소재 시군구 전체 (심의자료 방식)</label>' +
+    '<label><input type="radio" name="rptScope" value="gu"> 사업지 소재 시군구 전체</label>' +
     '<label><input type="radio" name="rptScope" value="radius"> 지도의 반경 안 단지만 <span id="rptRadiusTxt"></span></label>' +
     '</fieldset>' +
     '<div class="rpt-grid">' +
@@ -95,9 +95,10 @@ function openReportDialog() {
 function rptCloseDialog() { var d = document.getElementById('rptDialog'); if (d && d.open) d.close(); }
 
 // 기준연도 기준으로 필요한 조회 기간 (3개년 전 1월 ~ 기준연도 말 또는 이번 달)
+// 기준연도 기준으로 필요한 조회 기간 — 지역 지표 5개년(4년 전 1월) ~ 기준연도 말 또는 이번 달
 function rptNeedRange(year) {
   var now = rptNowYm(), end = year + '12';
-  return { start: (year - 3) + '01', end: end > now ? now : end };
+  return { start: (year - 4) + '01', end: end > now ? now : end };
 }
 function rptCovered(o) {
   var need = rptNeedRange(o.baseYear);
@@ -155,8 +156,18 @@ function rptSnapshot(o) {
     : lastAllComplexes.filter(function (c) { return rptSgg(c) === lastRun.lawd; });
   // 직거래 제외는 지금 설정으로 다시 거른다 (반경 밖 단지는 지도 토글이 반영되지 않으므로)
   list = list.map(function (c) { return Object.assign({}, c, { trades: filterDirect(c.tradesAll || c.trades || []) }); });
-  return { run: lastRun, complexes: list };
+  // 지역 지표용 — 반경에 걸친 모든 시군구의 단지 (scope와 무관)
+  var region = lastAllComplexes.filter(function (c) { return lastRun.lawds.indexOf(rptSgg(c)) !== -1; })
+    .map(function (c) { return { type: c.type, presale: !!c.presale, sgg: rptSgg(c), dong: c.dong, trades: filterDirect(c.tradesAll || c.trades || []), rents: c.rents || [] }; });
+  return { run: lastRun, complexes: list, region: region };
 }
+function rptGuNames(lawds) {
+  var o = {};
+  lawds.forEach(function (k) { var n = lawdNameMap[k]; o[k] = n ? (n.gu || k) : k; });
+  return o;
+}
+
+/* 인구·전입 지표는 report-pop.js (rptLoadPopulation) */
 
 /* ── ③ 세대수 (K-apt) ── 이름이 하나로 맞을 때만 쓴다. 애매하면 비워 둔다 */
 async function rptPickKapt(c, list) {
@@ -202,7 +213,7 @@ async function rptFillKapt(list) {
       }
     }
   } catch (e) {
-    console.warn('[심의 보고서] 세대수 조회 중단 → ' + e.message);
+    console.warn('[분석 보고서] 세대수 조회 중단 → ' + e.message);
     return '세대수 일부를 확인하지 못했습니다 (' + e.message + ').';
   }
   return '';
@@ -261,7 +272,7 @@ async function rptAttachInit(silv, o) {
     if (!d) { missing++; return; }
     r.notice = { ym: String(d.RCRIT_PBLANC_DE || '').slice(0, 7).replace('-', '.'), hh: Number(d.TOT_SUPLY_HSHLDCO) || null };
     try { r.init = PresaleCore.repPrice(await loadModels(d.HOUSE_MANAGE_NO), band); }
-    catch (e) { failed++; console.warn('[심의 보고서] 분양가 조회 실패 ' + r.name + ' → ' + e.message); }
+    catch (e) { failed++; console.warn('[분석 보고서] 분양가 조회 실패 ' + r.name + ' → ' + e.message); }
   }, 2);
   silv.premAvg = RptCore.silvPremium(silv);
   var msg = [];
@@ -283,6 +294,31 @@ async function runReport() {
     if (!(await rptEnsureData(o)) || !lastRun) { setStatus('err', '실거래 수집이 끝나지 않아 보고서를 만들지 못했습니다.'); return; }
     document.getElementById('runBtn').disabled = true;    // 세대수·분양권을 받는 동안 새 분석을 막는다
     var snap = rptSnapshot(o), run = snap.run, complexes = snap.complexes, notes = [];
+    var endM = rptNeedRange(o.baseYear).end;
+    var regOpt = { baseYear: o.baseYear, endMonth: String(endM).slice(0, 4) === String(o.baseYear) ? parseInt(String(endM).slice(4), 10) : 12, names: rptGuNames(run.lawds) };
+    var region = RptCore.regionStats(snap.region, regOpt);
+    // 사업지 법정동 — 같은 계산을 그 동 단지만으로 한 번 더 해서 'dong' 줄로 붙인다
+    if (run.dong) {
+      var inDong = snap.region.filter(function (c) { return c.sgg === run.lawd && c.dong === run.dong; })
+        .map(function (c) { return Object.assign({}, c, { sgg: 'dong' }); });
+      var rd = RptCore.regionStats(inDong, Object.assign({}, regOpt, { names: { dong: run.dong } }));
+      if (rd.gus.length) region.gus.push(Object.assign(rd.gus[0], { dong: true }));
+      else {
+        // 준공 아파트 거래가 없는 동(분양권 단지만 있는 신도시 등)도 줄은 남기고 빈칸으로 둔다
+        var blank = {};
+        region.years.forEach(function (y) {
+          blank[y] = { trade: { cnt: 0, avg: null, py: null }, jeonse: { cnt: 0, avg: null }, wolse: { cnt: 0, dep: null, rent: null }, yoy: null };
+        });
+        region.gus.push({ sgg: 'dong', name: run.dong, dong: true, empty: true, byYear: blank,
+                          presaleN: inDong.filter(function (c) { return c.presale; }).length });
+      }
+    }
+    // 주민등록 통계는 상류가 느리다(호출당 4~7초, 처음 받는 시군구는 1~3분). 보고서를 먼저 띄우고 받는 대로 표를 채운다
+    var popLoading = { loading: true, done: 0, total: 0 };
+    var popP = rptLoadPopulation(run.lawds, region.years, parseInt(endM, 10), function (d, t, partial) {
+      popLoading.done = d; popLoading.total = t; popLoading.partial = partial;
+      if (rptState && rptState.pop === popLoading) rgnRefreshPop();
+    }, { code: run.bjd, name: run.dong });
     if (o.households) {
       var hn = await rptFillHouseholds(complexes.filter(function (c) { return RptCore.eligible(c, o); }));
       if (hn) notes.push(hn);
@@ -300,10 +336,29 @@ async function runReport() {
       }
     }
     if (run.missing) notes.push('실거래 수집 중 누락 구간이 ' + run.missing + '건 있습니다 (콘솔 확인).');
-    var text = RptCore.narrative(rep, silv, Object.assign({}, o, { guName: run.gu, siteDong: run.dong }));
-    rptState = { rep: rep, silv: silv, silvErr: silvErr, text: text, o: o, notes: notes, meta: rptMeta(o, run) };
+    var endYm = rptNeedRange(o.baseYear).end;
+    // 요약 순서도 보고서 흐름과 같게: 인구·세대 → 거래·가격(구 → 사업지 법정동) → 인근 단지·분양가
+    var popNames = {}; popNames[run.lawd] = run.gu; if (run.dong) popNames.dong = run.dong + '(사업지 법정동)';
+    var makeText = function (pop) {
+      return PopCore.narrative(pop, region.years, popNames)
+        .concat(RptCore.regionNarrative(region, run.lawd, endYm), RptCore.regionNarrative(region, 'dong', endYm),
+          RptCore.narrative(rep, silv, Object.assign({}, o, { guName: run.gu, siteDong: run.dong })));
+    };
+    var text = makeText(null);
+    rptState = { rep: rep, silv: silv, silvErr: silvErr, text: text, o: o, notes: notes, meta: rptMeta(o, run),
+                 region: region, pop: popLoading, endYm: endYm, lawds: run.lawds };
     renderReport();
-    setStatus('ok', '심의 보고서 완료 · 대상 ' + rep.rows.length + '개 단지 · ' + rep.summaryYear + '년 ' + o.band + '타입 ' + rptN(rep.gu.cnt) + '건');
+    var mine = rptState;
+    popP.then(function (pop) {
+      if (rptState !== mine) return;      // 그 사이 새 보고서를 만들었으면 버린다
+      mine.pop = pop;
+      rgnRefreshPop();
+      // 요약 칸을 아직 고치지 않았으면 인구 문장을 앞에 넣어 다시 쓴다 (고쳤으면 그대로 둔다)
+      var ta = document.getElementById('rptText');
+      var fresh = makeText(pop);
+      if (ta && ta.value === rptTextOf(mine.text) && fresh.length !== mine.text.length) { mine.text = fresh; ta.value = rptTextOf(fresh); }
+    });
+    setStatus('ok', '분석 보고서 완료 · 대상 ' + rep.rows.length + '개 단지 · ' + rep.summaryYear + '년 ' + o.band + '타입 ' + rptN(rep.gu.cnt) + '건');
   } catch (e) {
     console.error(e);
     setStatus('err', '보고서 오류: ' + e.message);
