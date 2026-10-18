@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   심의 보고서 — PDF · Word(.docx) 받기
+   분석 보고서 — PDF · Word(.docx) 받기
    · PDF : 보고서 화면을 그대로 A4에 옮긴다 (html2pdf — 화면과 모양이 같다)
    · Word: 표·문단을 docx 문서로 새로 짠다 (받은 뒤 Word에서 고쳐 쓸 수 있다)
    라이브러리는 버튼을 처음 누를 때만 CDN에서 불러온다. 파일은 브라우저 기본 다운로드 폴더로 저장된다.
@@ -24,7 +24,7 @@ function rptLoadLib(name) {
   }
   return lib.loading;
 }
-function rptFileBase() { return '심의보고서_' + (rptState.meta.dong || '사업지') + '_' + rptState.meta.date.replace(/\./g, ''); }
+function rptFileBase() { return '분석보고서_' + (rptState.meta.dong || '사업지') + '_' + rptState.meta.date.replace(/\./g, ''); }
 function rptCurrentText() {
   var ta = document.getElementById('rptText');
   return (ta ? ta.value : rptState.text.map(function (t) { return '- ' + t; }).join('\n\n'));
@@ -128,20 +128,26 @@ function rptDocxSilv(k, st) {
 function rptDocxBody(k, st) {
   var o = st.o, m = st.meta, rep = st.rep, H = function (t) { return k.para(t, { run: { bold: true, size: 22 }, spacing: { before: 280, after: 120 } }); };
   var out = [
-    k.para('인근 최근 3개년 실거래가격 등', { run: { bold: true, size: 32, color: '6A2C00' }, spacing: { after: 120 } }),
+    k.para('인근 실거래 분석 보고서', { run: { bold: true, size: 32, color: '6A2C00' }, spacing: { after: 120 } }),
     k.para(m.scope + ' · 기준연도 ' + o.baseYear + ' · 평당가 = 평균가 ÷ ' + o.convPy + '평 · 해제거래 제외 · ' + m.direct + ' · 단위 천원', { run: { color: '666666' } }),
     k.para('사업지 ' + m.site + ' (' + m.dong + ') · 분석일 ' + m.date + (o.unitPrice ? ' · 본건 세대당 분양가 ' + rptN(o.unitPrice) + '천원' : ''), { run: { color: '666666' } }),
   ];
   st.notes.forEach(function (n) { out.push(k.para('※ ' + n, { run: { color: '41548B' } })); });
-  out.push(H('가. ' + rptTitle(o)));
+  return out;
+}
+// 나~마 — 인근 단지 비교 · 동별 평균 · 분양권 · 요약
+function rptDocxBodyRest(k, st) {
+  var o = st.o, m = st.meta, rep = st.rep, H = function (t) { return k.para(t, { run: { bold: true, size: 22 }, spacing: { before: 280, after: 120 } }); };
+  var out = [];
+  out.push(H('나. ' + rptTitle(o)));
   out.push(rep.rows.length ? rptDocxTrade(k, rep) : k.para('조건에 맞는 단지가 없습니다.'));
   out.push(k.para(rep.years.slice(0, 3).join('·') + '년은 연평균, ' + rptYY(rep.years[3]) + '가격은 ' + rep.years[3] + '년 평균. 본건대비 = 최근 가격 ÷ 본건 세대당 분양가. 임대 단지 제외.',
     { run: { size: 16, color: '666666' }, spacing: { before: 60 } }));
-  out.push(H('나. ' + rep.summaryYear + '년 법정동별 평균'));
+  out.push(H('다. ' + rep.summaryYear + '년 법정동별 평균'));
   out.push(rptDocxDong(k, rep, m));
-  out.push(H('다. 최근 3개년 분양권 실거래가격 평균'));
+  out.push(H('라. 최근 3개년 분양권 실거래가격 평균'));
   out.push(rptDocxSilv(k, st));
-  out.push(H('라. 검토 문안'));
+  out.push(H('마. 요약 (수치)'));
   rptCurrentText().split(/\n+/).filter(function (l) { return l.trim(); })
     .forEach(function (l) { out.push(k.para(l, { run: { size: 20 }, spacing: { after: 120, line: 360 } })); });
   return out;
@@ -152,9 +158,9 @@ function downloadReportDocx() {
     await rptLoadLib('docx');
     var k = rptDocxKit(), D = k.D;
     var doc = new D.Document({
-      creator: '인근 실거래 분석', title: '심의 보고서',
+      creator: '인근 실거래 분석', title: '분석 보고서',
       styles: { default: { document: { run: { font: RPT_FONT, size: 18 } } } },
-      sections: [{ properties: { page: { margin: { top: 1000, bottom: 1000, left: 800, right: 800 } } }, children: rptDocxBody(k, rptState) }],
+      sections: [{ properties: { page: { margin: { top: 1000, bottom: 1000, left: 800, right: 800 } } }, children: rptDocxBody(k, rptState).concat(rptState.region ? await rgnDocxBody(k, rptState) : [], rptDocxBodyRest(k, rptState)) }],
     });
     var blob = await D.Packer.toBlob(doc);
     var a = document.createElement('a');

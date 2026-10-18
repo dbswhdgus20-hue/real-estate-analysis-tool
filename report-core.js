@@ -19,7 +19,6 @@
     101: { lo: 99, hi: 104, py: 40 },
     114: { lo: 112, hi: 117, py: 45 },
   };
-  var SIMILAR_PCT = 10;    // 본건 분양가가 비교 단지 평균의 ±10% 안이면 '유사'
   var COMPARE_MAX = 4;     // 문안에 이름을 드는 비교 단지 수
 
   function toThousand(man) {
@@ -146,6 +145,74 @@
     };
   }
 
+  /* 지역(시군구) 지표 — 반경 안 구마다 5개년 아파트 매매·전월세를 집계한다.
+     complexes: 각 단지에 sgg(시군구코드 5자리)가 붙은 목록. 분양권(presale)·오피스텔은 뺀다.
+     매매: 건수·평균 거래가·전용 3.3㎡당 평균가(공급면적 추정 없이 전용 기준이라 객관적), 전년 대비 건수 증감(%)
+     전월세: 전세 건수·평균 보증금, 월세 건수·평균 보증금·평균 월세 */
+  var PY_M2 = 3.3058;
+  function emptyYear() { return { t: [], p: [], j: [], wd: [], wr: [], m: {} }; }   // m: 월별 매매 건수 (전년 동기 비교용)
+  function finishYear(b) {
+    return {
+      trade: { cnt: b.t.length, avg: mean(b.t), py: b.p.length ? Math.round(b.p.reduce(function (s, x) { return s + x; }, 0) / b.p.length) : null },
+      jeonse: { cnt: b.j.length, avg: mean(b.j) },
+      wolse: { cnt: b.wd.length, dep: mean(b.wd), rent: mean(b.wr) },
+    };
+  }
+  function regionStats(complexes, o) {
+    var years = [], acc = {}, all = {};
+    for (var y0 = o.baseYear - 4; y0 <= o.baseYear; y0++) { years.push(y0); all[y0] = emptyYear(); }
+    complexes.forEach(function (c) {
+      if (c.type !== '아파트' || c.presale || !c.sgg) return;
+      var g = acc[c.sgg] = acc[c.sgg] || (function () { var b = {}; years.forEach(function (y) { b[y] = emptyYear(); }); return b; })();
+      (c.trades || []).forEach(function (d) {
+        var y = parseInt(d.dealYear, 10), amt = toThousand(d.dealAmount), ar = parseFloat(d.excluUseAr);
+        if (!g[y] || !amt) return;
+        var mo = parseInt(d.dealMonth, 10) || 0;
+        [g[y], all[y]].forEach(function (b) { b.t.push(amt); if (ar > 0) b.p.push(amt / (ar / PY_M2)); b.m[mo] = (b.m[mo] || 0) + 1; });
+      });
+      (c.rents || []).forEach(function (d) {
+        var y = parseInt(d.dealYear, 10), dep = toThousand(d.deposit), mon = toThousand(d.monthlyRent);
+        if (!g[y]) return;
+        [g[y], all[y]].forEach(function (b) {
+          if (d._rt === '월세') { if (dep || mon) { b.wd.push(dep); b.wr.push(mon); } }
+          else if (dep) b.j.push(dep);
+        });
+      });
+    });
+    // 마지막 해가 일부 월만 있으면(endMonth < 12) 전년 같은 기간(1~endMonth월)과 비교한다 — 1년 전체와 견주면 감소로 잘못 읽힌다
+    var endMonth = o.endMonth && o.endMonth < 12 ? o.endMonth : 0;
+    function upTo(b, m) { var c = 0; for (var k in b.m) if (+k <= m) c += b.m[k]; return c; }
+    function finish(raw) {
+      var byYear = {};
+      years.forEach(function (y, i) {
+        byYear[y] = finishYear(raw[y]);
+        var same = endMonth && y === o.baseYear;
+        var cur = same ? upTo(raw[y], endMonth) : byYear[y].trade.cnt;
+        var prev = i ? (same ? upTo(raw[years[i - 1]], endMonth) : byYear[years[i - 1]].trade.cnt) : 0;
+        byYear[y].yoy = i && prev ? Math.round((cur / prev - 1) * 1000) / 10 : null;
+        byYear[y].yoySame = !!same;
+      });
+      return byYear;
+    }
+    var names = o.names || {};
+    var gus = Object.keys(acc).sort().map(function (k) { return { sgg: k, name: names[k] || k, byYear: finish(acc[k]) }; });
+    return { years: years, gus: gus, total: { name: '합계', byYear: finish(all) } };
+  }
+
+  // 지역 요약 문장 — 사업지 소재 구의 첫해·기준연도 수치만 나란히 적는다 (증감 평가 없음)
+  function regionNarrative(region, sgg, endYm) {
+    var g = (region.gus || []).filter(function (x) { return x.sgg === sgg; })[0];
+    if (!g) return [];
+    var y0 = region.years[0], y1 = region.years[region.years.length - 1];
+    var partial = endYm && String(endYm).slice(0, 4) === String(y1) && String(endYm).slice(4) !== '12';
+    var lab1 = y1 + '년' + (partial ? '(1~' + parseInt(String(endYm).slice(4), 10) + '월)' : '');
+    var a = g.byYear[y0], b = g.byYear[y1], out = [];
+    out.push(g.name + ' 아파트 매매는 ' + y0 + '년 ' + n(a.trade.cnt) + '건, ' + lab1 + ' ' + n(b.trade.cnt) + '건이며, 전용 3.3㎡당 평균가는 ' +
+      y0 + '년 ' + n(a.trade.py) + '천원, ' + y1 + '년 ' + n(b.trade.py) + '천원임.');
+    if (a.jeonse.avg || b.jeonse.avg) out.push(g.name + ' 아파트 전세 평균 보증금은 ' + y0 + '년 ' + n(a.jeonse.avg) + '천원, ' + y1 + '년 ' + n(b.jeonse.avg) + '천원임.');
+    return out;
+  }
+
   // 분양권 단지별 프리미엄(%) = 최근 거래 평균 ÷ 최초 분양가(대표 평형) − 1, 전체는 거래 건수 가중 평균.
   // row.init은 report.js가 청약홈 공고로 붙인다 (PresaleCore.repPrice 결과, 천원)
   function silvPremium(silv) {
@@ -189,14 +256,13 @@
       var d = compareDong(rep, o.siteDong);
       // 사업지에서 가까운 순(번호 순)으로 COMPARE_MAX곳 — 심의자료도 ①~④ 인접 단지를 들었다
       var near = rep.rows.filter(function (r) { return r.dong === d && r.latest; }).slice(0, COMPARE_MAX);
-      var t = '본건 계획분양가는 @' + n(unitPy) + '천원(세대당 ' + n(o.unitPrice) + '천원)으로 ' + gu + ' 공동주택 평균 대비 약 ' + p + '% 수준';
+      // 분석보고서는 판단을 읽는 사람에게 맡긴다 — '유사·높음' 같은 평가 없이 비율만 적는다
+      var t = '본건 계획분양가는 @' + n(unitPy) + '천원(세대당 ' + n(o.unitPrice) + '천원)으로 ' + gu + ' 공동주택 평균 평당가의 약 ' + p + '% 수준임.';
       if (near.length) {
         var nearAvg = mean(near.map(function (r) { return r.latest; }));
-        var diff = pct(o.unitPrice, nearAvg) - 100;
-        var level = Math.abs(diff) <= SIMILAR_PCT ? '유사한' : diff > 0 ? '다소 높은' : '낮은';
-        t += (p > 100 ? '으로 높으나, ' : '이며, ') + d + ' 소재 ' + near.map(function (r) { return '「' + r.name + '」(' + n(r.latest) + '천원)'; }).join(', ')
-          + ' 등의 ' + y + '년 실거래가격 평균 대비 ' + level + ' 수준임.';
-      } else t += '임.';
+        t += ' ' + d + ' 소재 ' + near.map(function (r) { return '「' + r.name + '」(' + n(r.latest) + '천원)'; }).join(', ')
+          + '의 ' + y + '년 실거래가격 평균은 ' + n(nearAvg) + '천원이며, 본건 세대당 분양가는 이의 약 ' + pct(o.unitPrice, nearAvg) + '% 수준임.';
+      }
       out.push(t);
     }
 
@@ -212,7 +278,7 @@
   var api = {
     BANDS: BANDS, toThousand: toThousand, inBand: inBand, eligible: eligible,
     summarizeComplex: summarizeComplex, buildReport: buildReport, summarizeSilv: summarizeSilv,
-    narrative: narrative, compareDong: compareDong, silvPremium: silvPremium,
+    narrative: narrative, compareDong: compareDong, silvPremium: silvPremium, regionStats: regionStats, regionNarrative: regionNarrative,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.RptCore = api;

@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   심의 보고서 — 보고서 화면 · Excel · 인쇄 (report.js가 만든 rptState를 그린다)
+   분석 보고서 — 보고서 화면 · Excel · 인쇄 (report.js가 만든 rptState를 그린다)
    표 구성은 사전심의 자료를 따른다.
      가. 공동주택단지(입주 N년 내 + 전용 84㎡) 최근 3개년 실거래가격 평균
      나. 동별 평균과 순위
@@ -80,7 +80,7 @@ function renderReport() {
   var cond = m.scope + ' · 기준연도 ' + o.baseYear + ' · 평당가 = 평균가 ÷ ' + o.convPy + '평 · 해제거래 제외 · ' + m.direct + ' · 단위 천원';
   view.innerHTML =
     '<div class="rpt-bar" role="toolbar" aria-label="보고서 도구">' +
-    '<strong>심의 보고서</strong><span class="rpt-bar-meta">' + rptEsc(m.site) + '</span>' +
+    '<strong>분석 보고서</strong><span class="rpt-bar-meta">' + rptEsc(m.site) + '</span>' +
     '<button type="button" class="hbtn" onclick="openReportDialog()">조건 바꾸기</button>' +
     '<button type="button" class="hbtn" id="rptPdfBtn" onclick="downloadReportPdf()">PDF 받기</button>' +
     '<button type="button" class="hbtn" id="rptDocxBtn" onclick="downloadReportDocx()">Word 받기</button>' +
@@ -88,19 +88,20 @@ function renderReport() {
     '<button type="button" class="hbtn" onclick="window.print()">인쇄</button>' +
     '<button type="button" class="hbtn hbtn-run" onclick="closeReport()">지도로 돌아가기</button></div>' +
     '<article class="rpt-doc">' +
-    '<header><h1>인근 최근 3개년 실거래가격 등</h1><p class="rpt-cond">' + rptEsc(cond) + '</p>' +
+    '<header><h1>인근 실거래 분석 보고서</h1><p class="rpt-cond">' + rptEsc(cond) + '</p>' +
     '<p class="rpt-cond">사업지 ' + rptEsc(m.site) + ' (' + rptEsc(m.dong) + ') · 분석일 ' + m.date +
     (o.unitPrice ? ' · 본건 세대당 분양가 ' + rptN(o.unitPrice) + '천원' : '') + '</p></header>' +
     st.notes.map(function (n) { return '<p class="rpt-warn">' + rptEsc(n) + '</p>'; }).join('') +
-    '<section><h2>가. ' + rptEsc(rptTitle(o)) + '</h2>' + rptTradeTable(rep, o) +
+    (st.region ? rgnSection(st) : '') +
+    '<section><h2>나. ' + rptEsc(rptTitle(o)) + '</h2>' + rptTradeTable(rep, o) +
     '<p class="rpt-foot">' + rep.years.slice(0, 3).join('·') + '년은 연평균, ' + rptYY(rep.years[3]) + '가격은 ' + rep.years[3] +
     '년 평균(조회 시점까지). 본건대비 = 최근 가격 ÷ 본건 세대당 분양가, ' + RPT_RATIO_HI + '% 이상 강조. 임대 단지는 제외.</p></section>' +
-    '<section><h2>나. ' + rep.summaryYear + '년 법정동별 평균</h2>' + rptDongTable(rep, m) + '</section>' +
-    '<section><h2>다. 최근 3개년 분양권 실거래가격 평균</h2>' + rptSilvTable(st) + '</section>' +
-    '<section><h2>라. 검토 문안</h2><label class="rpt-sr" for="rptText">검토 문안 (고쳐 쓸 수 있음)</label>' +
+    '<section><h2>다. ' + rep.summaryYear + '년 법정동별 평균</h2>' + rptDongTable(rep, m) + '</section>' +
+    '<section><h2>라. 최근 3개년 분양권 실거래가격 평균</h2>' + rptSilvTable(st) + '</section>' +
+    '<section><h2>마. 요약 (수치)</h2><label class="rpt-sr" for="rptText">요약 (고쳐 쓸 수 있음)</label>' +
     '<textarea id="rptText" class="rpt-text" rows="8">' + rptEsc(st.text.map(function (t) { return '- ' + t; }).join('\n\n')) + '</textarea>' +
     '<div id="rptPrintText" class="rpt-print-text" aria-hidden="true"></div>' +
-    '<p class="rpt-foot">입지·브랜드 같은 정성 의견은 직접 덧붙이세요. Excel과 인쇄에는 고친 내용이 그대로 들어갑니다.</p></section>' +
+    '<p class="rpt-foot">수치만 정리한 문장입니다. 판단·의견은 보고서를 읽는 분이 덧붙이세요. 고친 내용은 Excel·PDF·Word에 그대로 들어갑니다.</p></section>' +
     '</article>';
   view.hidden = false;
   document.body.classList.add('rpt-open');
@@ -175,10 +176,11 @@ function exportReportExcel() {
   var ta = document.getElementById('rptText');
   var lines = (ta ? ta.value : rptState.text.join('\n')).split(/\n+/).filter(function (s) { return s.trim(); });
   var wb = XLSX.utils.book_new();
+  if (rptState.region) rgnSheets(rptState).forEach(function (sh) { XLSX.utils.book_append_sheet(wb, sh[1], sh[0]); });
   XLSX.utils.book_append_sheet(wb, rptTradeSheet(rptState), '실거래 비교');
   XLSX.utils.book_append_sheet(wb, rptDongSheet(rptState), '동별 평균');
   XLSX.utils.book_append_sheet(wb, rptSilvSheet(rptState), '분양권');
-  XLSX.utils.book_append_sheet(wb, rptSheet([['검토 문안']].concat(lines.map(function (l) { return [l]; })), [120], {}), '검토 문안');
+  XLSX.utils.book_append_sheet(wb, rptSheet([['요약 (수치)']].concat(lines.map(function (l) { return [l]; })), [120], {}), '요약');
   XLSX.writeFile(wb, rptFileBase() + '.xlsx');
   setStatus('ok', 'Excel 저장 완료 — 브라우저 다운로드 폴더의 ' + rptFileBase() + '.xlsx');
 }

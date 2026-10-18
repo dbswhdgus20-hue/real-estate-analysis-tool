@@ -124,6 +124,68 @@ test('검토 문안: 분양권 프리미엄이 있으면 최초 분양가 대비
   assert.match(text, /최초 분양가\(84타입 대표 평형\) 대비 평균 약 \+6\.5% 수준/);
 });
 
+test('지역 지표: 구마다 5개년 매매(건수·평균가·전용 3.3㎡당)와 전월세를 집계한다', () => {
+  const rent = (y, dep, mon, ar = '84.9') => ({ dealYear: String(y), deposit: (dep).toLocaleString('en-US'), monthlyRent: String(mon), excluUseAr: ar, _rt: mon ? '월세' : '전세' });
+  const list = [
+    { type: '아파트', sgg: '44133', trades: [trade(2022, 50000, '84.95'), trade(2024, 60000, '84.95'), trade(2024, 40000, '59.9')], rents: [rent(2024, 30000, 0), rent(2024, 5000, 100)] },
+    { type: '아파트', sgg: '44131', trades: [trade(2023, 30000, '84.95')], rents: [] },
+    { type: '아파트', sgg: '44133', presale: true, trades: [trade(2024, 99999)], rents: [] },        // 분양권은 매매 지표에서 뺀다
+    { type: '오피스텔', sgg: '44133', trades: [trade(2024, 20000, '30')], rents: [] },               // 아파트만
+  ];
+  const r = R.regionStats(list, { baseYear: 2024, names: { 44133: '천안시 서북구', 44131: '천안시 동남구' } });
+  assert.deepEqual(r.years, [2020, 2021, 2022, 2023, 2024]);
+  const sb = r.gus.find((g) => g.sgg === '44133');
+  assert.equal(sb.name, '천안시 서북구');
+  assert.equal(sb.byYear[2024].trade.cnt, 2);
+  assert.equal(sb.byYear[2024].trade.avg, 500000);
+  assert.equal(sb.byYear[2024].trade.py, Math.round((600000 / (84.95 / 3.3058) + 400000 / (59.9 / 3.3058)) / 2));
+  assert.equal(sb.byYear[2022].trade.cnt, 1);
+  assert.equal(sb.byYear[2023].trade.cnt, 0);
+  assert.equal(sb.byYear[2023].trade.avg, null);
+  assert.equal(sb.byYear[2024].jeonse.cnt, 1);
+  assert.equal(sb.byYear[2024].jeonse.avg, 300000);
+  assert.deepEqual([sb.byYear[2024].wolse.cnt, sb.byYear[2024].wolse.dep, sb.byYear[2024].wolse.rent], [1, 50000, 1000]);
+  // 거래량 증감: 전년 0건이면 계산하지 않는다
+  assert.equal(sb.byYear[2023].yoy, -100);
+  assert.equal(sb.byYear[2024].yoy, null);
+  assert.equal(r.total.byYear[2024].trade.cnt, 2);
+  assert.equal(r.total.byYear[2023].trade.cnt, 1);
+  assert.equal(r.total.byYear[2024].yoy, 100);
+});
+
+test('지역 지표: 마지막 해가 일부 월만 있으면 전년 같은 기간(1~N월)과 비교한다', () => {
+  const t = (y, m) => ({ dealYear: String(y), dealMonth: String(m), dealDay: '1', dealAmount: '50,000', excluUseAr: '84.9' });
+  const list = [{ type: '아파트', sgg: '1', trades: [t(2025, 3), t(2025, 9), t(2025, 11), t(2025, 12), t(2026, 2), t(2026, 5), t(2026, 8)], rents: [] }];
+  const r = R.regionStats(list, { baseYear: 2026, endMonth: 10 });
+  const b = r.gus[0].byYear;
+  assert.equal(b[2026].trade.cnt, 3);
+  assert.equal(b[2026].yoySame, true);                 // 전년 동기 대비
+  assert.equal(b[2026].yoy, Math.round((3 / 2 - 1) * 1000) / 10);   // 2025년 1~10월은 2건 → +50%
+  assert.equal(b[2025].yoySame, false);
+});
+
+test('지역 요약 문장: 첫해와 기준연도의 거래 건수·전용 3.3㎡당 평균가·전세 보증금을 그대로 적는다', () => {
+  const region = { years: [2022, 2023, 2024], gus: [{ sgg: '44133', name: '천안시 서북구', byYear: {
+    2022: { trade: { cnt: 100, avg: 400000, py: 15000 }, jeonse: { cnt: 10, avg: 250000 } },
+    2023: { trade: { cnt: 80, avg: 410000, py: 15500 }, jeonse: { cnt: 0, avg: null } },
+    2024: { trade: { cnt: 120, avg: 420000, py: 16200 }, jeonse: { cnt: 12, avg: 270000 } } } }] };
+  const t = R.regionNarrative(region, '44133', '202410').join(' ');
+  assert.match(t, /천안시 서북구 아파트 매매는 2022년 100건, 2024년\(1~10월\) 120건이며/);
+  assert.match(t, /전용 3\.3㎡당 평균가는 2022년 15,000천원, 2024년 16,200천원임/);
+  assert.match(t, /전세 평균 보증금은 2022년 250,000천원, 2024년 270,000천원임/);
+  assert.deepEqual(R.regionNarrative(region, '99999', '202410'), []);
+});
+
+test('요약 문안: 판단 표현 없이 수치만 쓴다', () => {
+  const list = [
+    complex({ name: '불당지웰더샵', dong: '불당동', trades: [trade(2024, 82233)] }),
+    complex({ name: '레이크타운푸르지오3차', dong: '성성동', trades: [trade(2024, 57763)] }),
+  ];
+  const text = R.narrative(R.buildReport(list, OPTS), null, { ...OPTS, guName: '천안시 서북구', siteDong: '성성동' }).join('\n');
+  assert.doesNotMatch(text, /유사|적정|높으나|낮은 수준|다소/);
+  assert.match(text, /본건 세대당 분양가는 이의 약 100% 수준임/);
+});
+
 test('검토 문안: PDF와 같은 틀로 구 평균·순위·본건 비교를 쓴다', () => {
   const list = [
     complex({ name: '불당지웰더샵', dong: '불당동', trades: [trade(2024, 82233)] }),
@@ -137,7 +199,7 @@ test('검토 문안: PDF와 같은 틀로 구 평균·순위·본건 비교를 �
   assert.match(text, /성성동이 577,630천원\(@16,989천원\)으로 2위/);
   assert.match(text, /본건 계획분양가는 @16,500천원\(세대당 580,000천원\)/);
   assert.match(text, /「레이크타운푸르지오3차」\(577,630천원\)/);
-  assert.match(text, /유사한 수준임/);
+  assert.match(text, /본건 세대당 분양가는 이의 약 100% 수준임/);   // 판단 표현 없이 비율만
 });
 
 test('분양가를 넣지 않으면 본건 비교 문장을 쓰지 않는다', () => {
