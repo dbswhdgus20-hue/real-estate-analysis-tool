@@ -49,13 +49,14 @@ function downloadReportPdf() {
     if (pt) { pt.textContent = rptCurrentText(); pt.style.display = 'block'; }
     doc.querySelectorAll('.rpt-sr').forEach(function (el) { el.remove(); });
     doc.classList.add('rpt-pdf');
+    await rgnSvgToImages(doc);
     await html2pdf().set({
       margin: [10, 8, 12, 8],
       filename: rptFileBase() + '.pdf',
       image: { type: 'jpeg', quality: 0.95 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'h2', '.rpt-cond'] },
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'h2', 'h3', '.rpt-cond', '.rgn-chart', '.rgn-keep'] },
     }).from(doc).save();
     setStatus('ok', 'PDF 저장 완료 — 브라우저 다운로드 폴더의 ' + rptFileBase() + '.pdf');
   });

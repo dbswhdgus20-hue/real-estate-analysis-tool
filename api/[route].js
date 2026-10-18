@@ -9,6 +9,7 @@
 'use strict';
 
 const { XMLParser } = require('fast-xml-parser');
+const { handleMois, MOIS_ROUTES } = require('./_mois.js');
 
 const BASE = process.env.UPSTREAM_BASE || 'https://apis.data.go.kr';
 const ODCLOUD = process.env.ODCLOUD_BASE || 'https://api.odcloud.kr';
@@ -363,6 +364,9 @@ async function fetchKaptOnce(spec, path, params, key) {
 async function handleRoute(routeName, query) {
   const key = process.env.DATA_GO_KR_KEY || process.env.DATA_SERVICE_KEY;
   if (!key) return { status: 500, body: { ok: false, error: '공공데이터 키(DATA_SERVICE_KEY) 미설정' } };
+
+  // 주민등록 인구·인구이동 — 응답 형식(JSON)과 호출 방식이 달라 별도 모듈에서 처리
+  if (MOIS_ROUTES.includes(routeName)) return handleMois(routeName, query, key);
 
   const spec = ROUTES[routeName];
   if (!spec) return { status: 404, body: { ok: false, error: '알 수 없는 경로' } };

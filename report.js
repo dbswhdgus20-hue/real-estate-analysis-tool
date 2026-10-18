@@ -167,38 +167,7 @@ function rptGuNames(lawds) {
   return o;
 }
 
-/* ── 인구·전입 지표 ── API를 붙이면 채워진다.
-   연동 방법: 아래 형태를 돌려주는 함수를 window.RPT_POP_PROVIDER에 넣는다 (서버 경로를 만든 뒤 그 안에서 fetch).
-     async function (lawds, years) → { '<시군구코드>': { <연도>: { pop, hh, moveIn, moveOut } } }
-       pop 주민등록 인구(연말), hh 세대수, moveIn 전입, moveOut 전출 — 인구 증감·순이동은 화면에서 계산한다
-   없으면 표 틀만 보이고 값은 '연동 예정'으로 둔다. */
-var RPT_POP_FIELDS = [
-  { k: 'pop', label: '주민등록 인구' }, { k: 'popChg', label: '인구 증감' }, { k: 'hh', label: '세대수' },
-  { k: 'moveIn', label: '전입' }, { k: 'moveOut', label: '전출' }, { k: 'net', label: '순이동 (전입−전출)' },
-];
-async function rptLoadPopulation(lawds, years) {
-  if (typeof window.RPT_POP_PROVIDER !== 'function') return null;
-  try {
-    var raw = await window.RPT_POP_PROVIDER(lawds, years) || {};
-    var out = {};
-    lawds.forEach(function (k) {
-      out[k] = {};
-      years.forEach(function (y, i) {
-        var v = (raw[k] || {})[y] || {}, prev = (raw[k] || {})[years[i - 1]] || {};
-        out[k][y] = {
-          pop: v.pop == null ? null : v.pop, hh: v.hh == null ? null : v.hh,
-          moveIn: v.moveIn == null ? null : v.moveIn, moveOut: v.moveOut == null ? null : v.moveOut,
-          popChg: v.pop != null && prev.pop != null ? v.pop - prev.pop : null,
-          net: v.moveIn != null && v.moveOut != null ? v.moveIn - v.moveOut : null,
-        };
-      });
-    });
-    return out;
-  } catch (e) {
-    console.warn('[분석 보고서] 인구 지표 조회 실패 → ' + e.message);
-    return { error: e.message };
-  }
-}
+/* 인구·전입 지표는 report-pop.js (rptLoadPopulation) */
 
 /* ── ③ 세대수 (K-apt) ── 이름이 하나로 맞을 때만 쓴다. 애매하면 비워 둔다 */
 async function rptPickKapt(c, list) {
@@ -327,7 +296,12 @@ async function runReport() {
     var snap = rptSnapshot(o), run = snap.run, complexes = snap.complexes, notes = [];
     var endM = rptNeedRange(o.baseYear).end;
     var region = RptCore.regionStats(snap.region, { baseYear: o.baseYear, endMonth: String(endM).slice(0, 4) === String(o.baseYear) ? parseInt(String(endM).slice(4), 10) : 12, names: rptGuNames(run.lawds) });
-    var pop = await rptLoadPopulation(run.lawds, region.years);
+    // 주민등록 통계는 상류가 느리다(호출당 4~7초, 처음 받는 시군구는 1~3분). 보고서를 먼저 띄우고 받는 대로 표를 채운다
+    var popLoading = { loading: true, done: 0, total: 0 };
+    var popP = rptLoadPopulation(run.lawds, region.years, parseInt(endM, 10), function (d, t, partial) {
+      popLoading.done = d; popLoading.total = t; popLoading.partial = partial;
+      if (rptState && rptState.pop === popLoading) rgnRefreshPop();
+    });
     if (o.households) {
       var hn = await rptFillHouseholds(complexes.filter(function (c) { return RptCore.eligible(c, o); }));
       if (hn) notes.push(hn);
@@ -349,8 +323,14 @@ async function runReport() {
     var text = RptCore.regionNarrative(region, run.lawd, endYm).concat(
       RptCore.narrative(rep, silv, Object.assign({}, o, { guName: run.gu, siteDong: run.dong })));
     rptState = { rep: rep, silv: silv, silvErr: silvErr, text: text, o: o, notes: notes, meta: rptMeta(o, run),
-                 region: region, pop: pop, endYm: endYm, lawds: run.lawds };
+                 region: region, pop: popLoading, endYm: endYm, lawds: run.lawds };
     renderReport();
+    var mine = rptState;
+    popP.then(function (pop) {
+      if (rptState !== mine) return;      // 그 사이 새 보고서를 만들었으면 버린다
+      mine.pop = pop;
+      rgnRefreshPop();
+    });
     setStatus('ok', '분석 보고서 완료 · 대상 ' + rep.rows.length + '개 단지 · ' + rep.summaryYear + '년 ' + o.band + '타입 ' + rptN(rep.gu.cnt) + '건');
   } catch (e) {
     console.error(e);
